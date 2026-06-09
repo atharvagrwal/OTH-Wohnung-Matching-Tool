@@ -73,29 +73,35 @@ export function CreateOfferPage() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.stayType || !formData.apartmentType) return;
 
     const totalPrice = formData.priceBreakdown.kaltmiete + formData.priceBreakdown.nebenkosten;
 
-    addOffer({
-      name: formData.name,
-      address: formData.address,
-      stayType: formData.stayType,
-      apartmentType: formData.apartmentType,
-      moveInDate: formData.moveInDate,
-      area: Number(formData.area) || 0,
-      description: formData.description,
-      images: formData.images.length > 0 ? formData.images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
-      genderBreakdown: formData.genderBreakdown,
-      priceBreakdown: formData.priceBreakdown,
-      totalPrice,
-      specifics: formData.specifics,
-      contactEmail: user?.email || '',
-      createdBy: user?.id || '',
-    });
+    // Use async/await to wait for the backend database to save the object
+    try {
+      await addOffer({
+        name: formData.name,
+        address: formData.address,
+        stayType: formData.stayType,
+        apartmentType: formData.apartmentType,
+        moveInDate: formData.moveInDate,
+        area: Number(formData.area) || 0,
+        description: formData.description,
+        images: formData.images.length > 0 ? formData.images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
+        genderBreakdown: formData.genderBreakdown,
+        priceBreakdown: formData.priceBreakdown,
+        totalPrice,
+        specifics: formData.specifics,
+        contactEmail: user?.email || 'dummy@oth-regensburg.de', // Fallback email
+        createdBy: user?.id || '1', // Matches our hardcoded backend ownerId
+      });
 
-    navigate('/');
+      // Only navigate back to the main feed once the backend saves successfully
+      navigate('/');
+    } catch (error) {
+      console.error("Failed to post offer:", error);
+    }
   };
 
   const renderStepContent = () => {

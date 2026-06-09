@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiService } from "../../services/api.ts";
 
 export type StayType = 'zwischenmiete' | 'nachmieter' | 'couchsurfing';
 export type ApartmentType = 'WG' | 'studio' | 'apartment';
@@ -47,114 +48,155 @@ export interface Offer {
 
 interface OffersContextType {
   offers: Offer[];
-  addOffer: (offer: Omit<Offer, 'id' | 'isActive'>) => void;
+  loading: boolean;
+  error: string | null;
+  addOffer: (offer: Omit<Offer, 'id' | 'isActive'>) => Promise<void>;
   getOfferById: (id: string) => Offer | undefined;
-  markOfferAsInactive: (id: string) => void;
+  markOfferAsInactive: (id: string) => Promise<void>;
+  refreshOffers: () => Promise<void>;
 }
 
 const OffersContext = createContext<OffersContextType | undefined>(undefined);
 
-const mockOffers: Offer[] = [
-  {
-    id: '1',
-    name: 'Cozy WG Room in City Center',
-    address: 'Galgenbergstraße 25, 93053 Regensburg',
-    stayType: 'zwischenmiete',
-    apartmentType: 'WG',
-    moveInDate: '2026-06-01',
-    area: 18,
-    description: 'Bright room in a friendly 3-person WG. Close to university and public transport. Fully furnished with bed, desk, and wardrobe. Perfect for students looking for a temporary place during summer semester.',
-    images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800', 'https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800'],
-    genderBreakdown: { males: 1, females: 2, diverse: 0 },
-    priceBreakdown: { kaltmiete: 300, nebenkosten: 50, kaution: 600 },
-    totalPrice: 350,
-    specifics: {
-      pets: 'not-allowed',
-      smoking: 'not-allowed',
-      parties: 'maybe',
-      instruments: 'allowed',
-      visitors: 'allowed',
+// Helper function to map flat Backend entity data straight to Frontend application models
+const mapBackendToFrontend = (backendOffer: any): Offer => {
+  // Reading data values directly from the root element since response fields are flat
+  const data = backendOffer || {};
+
+  // 1. Determine frontend StayType string safely from backend variables
+  let deducedStayType: StayType = 'nachmieter';
+  if (data.price === 0) {
+    deducedStayType = 'couchsurfing';
+  } else if (data.apartmentType === 'SUBLET') {
+    deducedStayType = 'zwischenmiete';
+  }
+
+  // 2. Translate string values safely to prevent component layout crashes
+  let deducedAptType: ApartmentType = 'apartment';
+  if (data.apartmentType === 'WG') deducedAptType = 'WG';
+  if (data.apartmentType === 'STUDIO') deducedAptType = 'studio';
+
+  return {
+    id: String(data.id || Math.random()),
+    name: data.title || 'Untitled Listing',
+    address: data.location || 'No Location Provided',
+    stayType: deducedStayType,
+    apartmentType: deducedAptType,
+    moveInDate: data.availableFrom || new Date().toISOString().split('T')[0],
+    area: 0, // Fallback placeholder since backend model currently lacks sizing properties
+    description: data.description || 'No description available.',
+    images: data.photoUrls && data.photoUrls.length > 0
+        ? data.photoUrls
+        : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
+    genderBreakdown: {
+      males: 0,
+      females: 0,
+      diverse: 0
     },
-    contactEmail: 'student@oth-regensburg.de',
-    createdBy: '1',
-    isActive: true,
-  },
-  {
-    id: '2',
-    name: 'Student Studio Near Campus',
-    address: 'Prüfeninger Straße 58, 93049 Regensburg',
-    stayType: 'nachmieter',
-    apartmentType: 'studio',
-    moveInDate: '2026-07-15',
-    area: 28,
-    description: 'Perfect studio for students! Walking distance to OTH. Private bathroom and kitchenette. Quiet neighborhood with good shopping options.',
-    images: ['https://images.unsplash.com/photo-1502672260066-6bc04751c9e9?w=800'],
-    genderBreakdown: { males: 0, females: 1, diverse: 0 },
-    priceBreakdown: { kaltmiete: 380, nebenkosten: 80, kaution: 760, ablose: 200 },
-    totalPrice: 460,
+    priceBreakdown: {
+      kaltmiete: data.price || 0,
+      nebenkosten: 0,
+      kaution: data.deposit || 0
+    },
+    totalPrice: data.price || 0,
     specifics: {
       pets: 'maybe',
       smoking: 'not-allowed',
-      parties: 'not-allowed',
+      parties: 'maybe',
       instruments: 'maybe',
       visitors: 'allowed',
     },
-    contactEmail: 'anna.mueller@oth-regensburg.de',
-    createdBy: '2',
-    isActive: true,
-  },
-  {
-    id: '3',
-    name: 'Short-term Couch in Shared Flat',
-    address: 'Universitätsstraße 31, 93053 Regensburg',
-    stayType: 'couchsurfing',
-    apartmentType: 'WG',
-    moveInDate: '2026-06-01',
-    area: 0,
-    description: 'Offering a comfortable couch in our shared living room for short stays (max 2 weeks). Great for students looking for temporary accommodation during internship or waiting for permanent housing.',
-    images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800'],
-    genderBreakdown: { males: 2, females: 1, diverse: 0 },
-    priceBreakdown: { kaltmiete: 0, nebenkosten: 0, kaution: 0 },
-    totalPrice: 0,
-    specifics: {
-      pets: 'not-allowed',
-      smoking: 'not-allowed',
-      parties: 'allowed',
-      instruments: 'maybe',
-      visitors: 'maybe',
-    },
-    contactEmail: 'max.schmidt@oth-regensburg.de',
-    createdBy: '3',
-    isActive: true,
-  },
-];
+    contactEmail: data.ownerEmail || '',
+    createdBy: String(data.ownerId || '1'), // Matches our test dummy owner token configuration
+    isActive: data.active ?? true
+  };
+};
 
 export function OffersProvider({ children }: { children: ReactNode }) {
-  const [offers, setOffers] = useState<Offer[]>(mockOffers);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const addOffer = (offer: Omit<Offer, 'id' | 'isActive'>) => {
-    const newOffer: Offer = {
-      ...offer,
-      id: String(Date.now()),
-      isActive: true,
+  const refreshOffers = async () => {
+    try {
+      setLoading(true);
+      const backendData = await apiService.getOffers();
+      const localizedOffers = backendData.map(mapBackendToFrontend);
+      setOffers(localizedOffers);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Could not sync up with backend housing service.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Pull listings directly when context mounts on screen
+  useEffect(() => {
+    refreshOffers();
+  }, []);
+
+  const addOffer = async (frontendOffer: Omit<Offer, 'id' | 'isActive'>) => {
+    // 1. Map the React frontend types back to the Backend enum layout
+    let backendAptType = frontendOffer.apartmentType.toUpperCase(); // 'WG' or 'STUDIO' or 'APARTMENT'
+    if (frontendOffer.stayType === 'zwischenmiete') {
+      backendAptType = 'SUBLET';
+    }
+
+    // 2. Build the exact payload structure required by OfferRequestDto
+    const payload = {
+      ownerId: 1, // Hardcoded dummy owner ID to bypass login requirements for now
+      apartment: {
+        title: frontendOffer.name,
+        description: frontendOffer.description,
+        price: frontendOffer.totalPrice,
+        deposit: frontendOffer.priceBreakdown.kaution,
+        location: frontendOffer.address,
+        apartmentType: backendAptType,
+        totalOccupants: frontendOffer.genderBreakdown.males + frontendOffer.genderBreakdown.females + frontendOffer.genderBreakdown.diverse,
+        photoUrls: frontendOffer.images
+      },
+      availableFrom: frontendOffer.moveInDate,
+      availableUntil: null // Optional field in the OfferRequestDto layout
     };
-    setOffers(prev => [newOffer, ...prev]);
+
+    try {
+      // 3. Send over network wire to Java Backend
+      await apiService.createOffer(payload);
+
+      // 4. Force state update to refresh local tracking array straight from database source
+      await refreshOffers();
+    } catch (err) {
+      console.error("Error creating listing on the backend:", err);
+      alert("Could not post listing. Make sure your backend server is active and CORS is configured.");
+    }
   };
 
   const getOfferById = (id: string) => {
     return offers.find(offer => offer.id === id);
   };
 
-  const markOfferAsInactive = (id: string) => {
-    setOffers(prev =>
-      prev.map(offer => (offer.id === id ? { ...offer, isActive: false } : offer))
-    );
+  const markOfferAsInactive = async (id: string) => {
+    try {
+      await apiService.deactivateOffer(id);
+      await refreshOffers();
+    } catch (err) {
+      console.error("Error deactivating listing:", err);
+    }
   };
 
   return (
-    <OffersContext.Provider value={{ offers, addOffer, getOfferById, markOfferAsInactive }}>
-      {children}
-    </OffersContext.Provider>
+      <OffersContext.Provider value={{
+        offers,
+        loading,
+        error,
+        addOffer,
+        getOfferById,
+        markOfferAsInactive,
+        refreshOffers
+      }}>
+        {children}
+      </OffersContext.Provider>
   );
 }
 

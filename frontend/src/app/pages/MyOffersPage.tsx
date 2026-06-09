@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router';
 import { useOffers } from '../context/OffersContext';
 import { useAuth } from '../context/AuthContext';
-import { PlusCircle, MapPin, Euro, Calendar, Trash2 } from 'lucide-react';
+import { PlusCircle, MapPin, Euro, Calendar } from 'lucide-react';
 
 export function MyOffersPage() {
   const { offers } = useOffers();
