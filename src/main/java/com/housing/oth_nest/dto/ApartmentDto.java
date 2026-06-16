@@ -4,7 +4,7 @@ import com.housing.oth_nest.model.ApartmentType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
 import java.util.List;
@@ -19,7 +19,7 @@ public class ApartmentDto {
     private String description;
 
     @NotNull
-    @Positive
+    @PositiveOrZero
     private Double price;
 
     private Double deposit;
@@ -27,10 +27,25 @@ public class ApartmentDto {
     @NotBlank
     private String location;
 
+    private Double area;
+    private Double kaltmiete;
+    private Double nebenkosten;
+    private Double ablose;
+    private Double sonstiges;
+
     @NotNull
     private ApartmentType apartmentType;
 
     private Integer totalOccupants;
+    private Integer malesCount;
+    private Integer femalesCount;
+    private Integer diverseCount;
+
+    private String petsPermission;
+    private String smokingPermission;
+    private String partiesPermission;
+    private String instrumentsPermission;
+    private String visitorsPermission;
 
     private List<String> photoUrls;
 }

@@ -56,6 +56,7 @@ public final class DtoMapper {
         OfferResponseDto.OfferResponseDtoBuilder builder = OfferResponseDto.builder()
                 .id(offer.getId())
                 .active(offer.isActive())
+                .stayType(offer.getStayType())
                 .availableFrom(offer.getAvailableFrom())
                 .availableUntil(offer.getAvailableUntil())
                 .createdAt(offer.getCreatedAt());
@@ -73,8 +74,21 @@ public final class DtoMapper {
                     .price(apt.getPrice())
                     .deposit(apt.getDeposit())
                     .location(apt.getLocation())
+                    .area(apt.getArea())
+                    .kaltmiete(apt.getKaltmiete())
+                    .nebenkosten(apt.getNebenkosten())
+                    .ablose(apt.getAblose())
+                    .sonstiges(apt.getSonstiges())
                     .apartmentType(apt.getApartmentType())
                     .totalOccupants(apt.getTotalOccupants())
+                    .malesCount(apt.getMalesCount())
+                    .femalesCount(apt.getFemalesCount())
+                    .diverseCount(apt.getDiverseCount())
+                    .petsPermission(apt.getPetsPermission())
+                    .smokingPermission(apt.getSmokingPermission())
+                    .partiesPermission(apt.getPartiesPermission())
+                    .instrumentsPermission(apt.getInstrumentsPermission())
+                    .visitorsPermission(apt.getVisitorsPermission())
                     .photoUrls(apt.getPhotoUrls());
         }
 
@@ -105,8 +119,21 @@ public final class DtoMapper {
         apartment.setPrice(dto.getPrice());
         apartment.setDeposit(dto.getDeposit());
         apartment.setLocation(dto.getLocation());
+        apartment.setArea(dto.getArea());
+        apartment.setKaltmiete(dto.getKaltmiete());
+        apartment.setNebenkosten(dto.getNebenkosten());
+        apartment.setAblose(dto.getAblose());
+        apartment.setSonstiges(dto.getSonstiges());
         apartment.setApartmentType(dto.getApartmentType());
         apartment.setTotalOccupants(dto.getTotalOccupants());
+        apartment.setMalesCount(dto.getMalesCount());
+        apartment.setFemalesCount(dto.getFemalesCount());
+        apartment.setDiverseCount(dto.getDiverseCount());
+        apartment.setPetsPermission(dto.getPetsPermission());
+        apartment.setSmokingPermission(dto.getSmokingPermission());
+        apartment.setPartiesPermission(dto.getPartiesPermission());
+        apartment.setInstrumentsPermission(dto.getInstrumentsPermission());
+        apartment.setVisitorsPermission(dto.getVisitorsPermission());
         apartment.setPhotoUrls(dto.getPhotoUrls());
         return apartment;
     }

@@ -15,6 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/offers")
 @Tag(name = "offer-controller", description = "Browse, search, and manage housing listings")
+@CrossOrigin(origins = "http://localhost:5173")
 public class OfferController {
 
     private final OfferService offerService;

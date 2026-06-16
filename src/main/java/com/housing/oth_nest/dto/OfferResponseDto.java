@@ -1,6 +1,7 @@
 package com.housing.oth_nest.dto;
 
 import com.housing.oth_nest.model.ApartmentType;
+import com.housing.oth_nest.model.StayType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
@@ -16,6 +17,7 @@ public class OfferResponseDto {
 
     private Long id;
     private boolean active;
+    private StayType stayType;
     private LocalDate availableFrom;
     private LocalDate availableUntil;
     private LocalDateTime createdAt;
@@ -26,8 +28,24 @@ public class OfferResponseDto {
     private Double price;
     private Double deposit;
     private String location;
+    private Double area;
+    private Double kaltmiete;
+    private Double nebenkosten;
+    private Double ablose;
+    private Double sonstiges;
+
     private ApartmentType apartmentType;
     private Integer totalOccupants;
+    private Integer malesCount;
+    private Integer femalesCount;
+    private Integer diverseCount;
+
+    private String petsPermission;
+    private String smokingPermission;
+    private String partiesPermission;
+    private String instrumentsPermission;
+    private String visitorsPermission;
+
     private List<String> photoUrls;
 
     private Long ownerId;

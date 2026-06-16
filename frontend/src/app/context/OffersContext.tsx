@@ -60,14 +60,13 @@ const OffersContext = createContext<OffersContextType | undefined>(undefined);
 
 // Helper function to map flat Backend entity data straight to Frontend application models
 const mapBackendToFrontend = (backendOffer: any): Offer => {
-  // Reading data values directly from the root element since response fields are flat
   const data = backendOffer || {};
 
   // 1. Determine frontend StayType string safely from backend variables
   let deducedStayType: StayType = 'nachmieter';
-  if (data.price === 0) {
+  if (data.stayType === 'COUCHSURFING' || data.price === 0) {
     deducedStayType = 'couchsurfing';
-  } else if (data.apartmentType === 'SUBLET') {
+  } else if (data.stayType === 'ZWISCHENMIETE') {
     deducedStayType = 'zwischenmiete';
   }
 
@@ -83,31 +82,33 @@ const mapBackendToFrontend = (backendOffer: any): Offer => {
     stayType: deducedStayType,
     apartmentType: deducedAptType,
     moveInDate: data.availableFrom || new Date().toISOString().split('T')[0],
-    area: 0, // Fallback placeholder since backend model currently lacks sizing properties
+    area: data.area || 0,
     description: data.description || 'No description available.',
     images: data.photoUrls && data.photoUrls.length > 0
         ? data.photoUrls
         : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
     genderBreakdown: {
-      males: 0,
-      females: 0,
-      diverse: 0
+      males: data.malesCount || 0,
+      females: data.femalesCount || 0,
+      diverse: data.diverseCount || 0
     },
     priceBreakdown: {
-      kaltmiete: data.price || 0,
-      nebenkosten: 0,
-      kaution: data.deposit || 0
+      kaltmiete: data.kaltmiete || data.price || 0,
+      nebenkosten: data.nebenkosten || 0,
+      kaution: data.deposit || 0,
+      ablose: data.ablose || 0,
+      sonstiges: data.sonstiges || 0
     },
     totalPrice: data.price || 0,
     specifics: {
-      pets: 'maybe',
-      smoking: 'not-allowed',
-      parties: 'maybe',
-      instruments: 'maybe',
-      visitors: 'allowed',
+      pets: (data.petsPermission as PermissionStatus) || 'maybe',
+      smoking: (data.smokingPermission as PermissionStatus) || 'not-allowed',
+      parties: (data.partiesPermission as PermissionStatus) || 'maybe',
+      instruments: (data.instrumentsPermission as PermissionStatus) || 'maybe',
+      visitors: (data.visitorsPermission as PermissionStatus) || 'allowed',
     },
     contactEmail: data.ownerEmail || '',
-    createdBy: String(data.ownerId || '1'), // Matches our test dummy owner token configuration
+    createdBy: String(data.ownerId || '1'),
     isActive: data.active ?? true
   };
 };
@@ -137,15 +138,20 @@ export function OffersProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addOffer = async (frontendOffer: Omit<Offer, 'id' | 'isActive'>) => {
-    // 1. Map the React frontend types back to the Backend enum layout
-    let backendAptType = frontendOffer.apartmentType.toUpperCase(); // 'WG' or 'STUDIO' or 'APARTMENT'
-    if (frontendOffer.stayType === 'zwischenmiete') {
-      backendAptType = 'SUBLET';
+    // 1. Map the React frontend layout structure cleanly to backend domain values
+    let backendAptType = frontendOffer.apartmentType.toUpperCase(); // 'WG', 'STUDIO', 'APARTMENT'
+    if (backendAptType === 'STUDIO') {
+      backendAptType = 'STUDIO';
+    } else if (backendAptType === 'APARTMENT') {
+      backendAptType = 'APARTMENT';
+    } else {
+      backendAptType = 'WG';
     }
 
-    // 2. Build the exact payload structure required by OfferRequestDto
+    // 2. Build the exact flat layout payload matching OfferRequestDto validation properties
     const payload = {
-      ownerId: 1, // Hardcoded dummy owner ID to bypass login requirements for now
+      ownerId: 1,
+      stayType: frontendOffer.stayType.toUpperCase(), // 'ZWISCHENMIETE', 'NACHMIETER', 'COUCHSURFING'
       apartment: {
         title: frontendOffer.name,
         description: frontendOffer.description,
@@ -153,11 +159,25 @@ export function OffersProvider({ children }: { children: ReactNode }) {
         deposit: frontendOffer.priceBreakdown.kaution,
         location: frontendOffer.address,
         apartmentType: backendAptType,
-        totalOccupants: frontendOffer.genderBreakdown.males + frontendOffer.genderBreakdown.females + frontendOffer.genderBreakdown.diverse,
+        totalOccupants: (frontendOffer.genderBreakdown.males || 0) + (frontendOffer.genderBreakdown.females || 0) + (frontendOffer.genderBreakdown.diverse || 0),
+
+        area: frontendOffer.area || 0,
+        kaltmiete: frontendOffer.priceBreakdown.kaltmiete || 0,
+        nebenkosten: frontendOffer.priceBreakdown.nebenkosten || 0,
+        ablose: frontendOffer.priceBreakdown.ablose || 0,
+        sonstiges: frontendOffer.priceBreakdown.sonstiges || 0,
+        malesCount: frontendOffer.genderBreakdown.males || 0,
+        femalesCount: frontendOffer.genderBreakdown.females || 0,
+        diverseCount: frontendOffer.genderBreakdown.diverse || 0,
+        petsPermission: frontendOffer.specifics.pets || 'maybe',
+        smokingPermission: frontendOffer.specifics.smoking || 'not-allowed',
+        partiesPermission: frontendOffer.specifics.parties || 'maybe',
+        instrumentsPermission: frontendOffer.specifics.instruments || 'maybe',
+        visitorsPermission: frontendOffer.specifics.visitors || 'allowed',
         photoUrls: frontendOffer.images
       },
       availableFrom: frontendOffer.moveInDate,
-      availableUntil: null // Optional field in the OfferRequestDto layout
+      availableUntil: null
     };
 
     try {
@@ -169,6 +189,7 @@ export function OffersProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("Error creating listing on the backend:", err);
       alert("Could not post listing. Make sure your backend server is active and CORS is configured.");
+      throw err;
     }
   };
 
