@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiService } from "../../services/api.ts";
+import axios from 'axios';
 
 export type StayType = 'zwischenmiete' | 'nachmieter' | 'couchsurfing';
 export type ApartmentType = 'WG' | 'studio' | 'apartment';
@@ -36,7 +37,7 @@ export interface Offer {
   moveInDate: string;
   area: number;
   description: string;
-  images: string[];
+  images: string[]; // Still tracks output string preview URLs for grid component rendering
   genderBreakdown: GenderBreakdown;
   priceBreakdown: PriceBreakdown;
   totalPrice: number;
@@ -50,7 +51,8 @@ interface OffersContextType {
   offers: Offer[];
   loading: boolean;
   error: string | null;
-  addOffer: (offer: Omit<Offer, 'id' | 'isActive'>) => Promise<void>;
+  // ACCEPT BOTH TEXT METADATA OBJECTS AND RAW FILES ARRAYS
+  addOffer: (offer: Omit<Offer, 'id' | 'isActive' | 'images'>, binaryFiles: File[]) => Promise<void>;
   getOfferById: (id: string) => Offer | undefined;
   markOfferAsInactive: (id: string) => Promise<void>;
   refreshOffers: () => Promise<void>;
@@ -58,11 +60,9 @@ interface OffersContextType {
 
 const OffersContext = createContext<OffersContextType | undefined>(undefined);
 
-// Helper function to map flat Backend entity data straight to Frontend application models
 const mapBackendToFrontend = (backendOffer: any): Offer => {
   const data = backendOffer || {};
 
-  // 1. Determine frontend StayType string safely from backend variables
   let deducedStayType: StayType = 'nachmieter';
   if (data.stayType === 'COUCHSURFING' || data.price === 0) {
     deducedStayType = 'couchsurfing';
@@ -70,7 +70,6 @@ const mapBackendToFrontend = (backendOffer: any): Offer => {
     deducedStayType = 'zwischenmiete';
   }
 
-  // 2. Translate string values safely to prevent component layout crashes
   let deducedAptType: ApartmentType = 'apartment';
   if (data.apartmentType === 'WG') deducedAptType = 'WG';
   if (data.apartmentType === 'STUDIO') deducedAptType = 'studio';
@@ -132,14 +131,12 @@ export function OffersProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Pull listings directly when context mounts on screen
   useEffect(() => {
     refreshOffers();
   }, []);
 
-  const addOffer = async (frontendOffer: Omit<Offer, 'id' | 'isActive'>) => {
-    // 1. Map the React frontend layout structure cleanly to backend domain values
-    let backendAptType = frontendOffer.apartmentType.toUpperCase(); // 'WG', 'STUDIO', 'APARTMENT'
+  const addOffer = async (frontendOffer: Omit<Offer, 'id' | 'isActive' | 'images'>, binaryFiles: File[]) => {
+    let backendAptType = frontendOffer.apartmentType.toUpperCase();
     if (backendAptType === 'STUDIO') {
       backendAptType = 'STUDIO';
     } else if (backendAptType === 'APARTMENT') {
@@ -148,10 +145,10 @@ export function OffersProvider({ children }: { children: ReactNode }) {
       backendAptType = 'WG';
     }
 
-    // 2. Build the exact flat layout payload matching OfferRequestDto validation properties
-    const payload = {
-      ownerId: 1,
-      stayType: frontendOffer.stayType.toUpperCase(), // 'ZWISCHENMIETE', 'NACHMIETER', 'COUCHSURFING'
+    // 1. Pack text attributes inside our baseline metadata object block
+    const offerMetadata = {
+      ownerId: Number(frontendOffer.createdBy) || 1,
+      stayType: frontendOffer.stayType.toUpperCase(),
       apartment: {
         title: frontendOffer.name,
         description: frontendOffer.description,
@@ -160,7 +157,6 @@ export function OffersProvider({ children }: { children: ReactNode }) {
         location: frontendOffer.address,
         apartmentType: backendAptType,
         totalOccupants: (frontendOffer.genderBreakdown.males || 0) + (frontendOffer.genderBreakdown.females || 0) + (frontendOffer.genderBreakdown.diverse || 0),
-
         area: frontendOffer.area || 0,
         kaltmiete: frontendOffer.priceBreakdown.kaltmiete || 0,
         nebenkosten: frontendOffer.priceBreakdown.nebenkosten || 0,
@@ -173,22 +169,38 @@ export function OffersProvider({ children }: { children: ReactNode }) {
         smokingPermission: frontendOffer.specifics.smoking || 'not-allowed',
         partiesPermission: frontendOffer.specifics.parties || 'maybe',
         instrumentsPermission: frontendOffer.specifics.instruments || 'maybe',
-        visitorsPermission: frontendOffer.specifics.visitors || 'allowed',
-        photoUrls: frontendOffer.images
+        visitorsPermission: frontendOffer.specifics.visitors || 'allowed'
       },
       availableFrom: frontendOffer.moveInDate,
       availableUntil: null
     };
 
-    try {
-      // 3. Send over network wire to Java Backend
-      await apiService.createOffer(payload);
+    // 2. Initialize browser FormData engine container instance
+    const formData = new FormData();
 
-      // 4. Force state update to refresh local tracking array straight from database source
+    // 3. Bind metadata block context as a Blob flagged with explicit application/json formatting headers
+    formData.append(
+        'offer',
+        new Blob([JSON.stringify(offerMetadata)], { type: 'application/json' })
+    );
+
+    // 4. Append your native binary device file objects array cleanly onto the form
+    binaryFiles.forEach((file) => {
+      formData.append('files', file);
+    });
+
+    try {
+      // 5. Fire raw Multi-Part envelope across network wire directly to Spring controller endpoint
+      await axios.post('http://localhost:8080/offers', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        }
+      });
+
       await refreshOffers();
     } catch (err) {
-      console.error("Error creating listing on the backend:", err);
-      alert("Could not post listing. Make sure your backend server is active and CORS is configured.");
+      console.error("Error creating multipart listing on the backend:", err);
+      alert("Could not post listing files. Verify server connectivity settings.");
       throw err;
     }
   };
