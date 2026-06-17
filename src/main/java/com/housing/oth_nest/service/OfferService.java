@@ -148,6 +148,7 @@ public class OfferService {
         offer.setOwner(owner);
         offer.setAvailableFrom(request.getAvailableFrom());
         offer.setAvailableUntil(request.getAvailableUntil());
+        offer.setStayType(request.getStayType());
         offer.setActive(true);
 
         offer = offerRepository.save(offer);

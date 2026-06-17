@@ -35,9 +35,10 @@ export interface Offer {
   stayType: StayType;
   apartmentType: ApartmentType;
   moveInDate: string;
+  moveOutDate?: string; // Track structural backend expiration timelines
   area: number;
   description: string;
-  images: string[]; // Still tracks output string preview URLs for grid component rendering
+  images: string[];
   genderBreakdown: GenderBreakdown;
   priceBreakdown: PriceBreakdown;
   totalPrice: number;
@@ -51,7 +52,6 @@ interface OffersContextType {
   offers: Offer[];
   loading: boolean;
   error: string | null;
-  // ACCEPT BOTH TEXT METADATA OBJECTS AND RAW FILES ARRAYS
   addOffer: (offer: Omit<Offer, 'id' | 'isActive' | 'images'>, binaryFiles: File[]) => Promise<void>;
   getOfferById: (id: string) => Offer | undefined;
   markOfferAsInactive: (id: string) => Promise<void>;
@@ -63,16 +63,22 @@ const OffersContext = createContext<OffersContextType | undefined>(undefined);
 const mapBackendToFrontend = (backendOffer: any): Offer => {
   const data = backendOffer || {};
 
+  // Upper-case conversion completely eliminates backend string layout drop bugs
+  const backendStayType = String(data.stayType || '').toUpperCase();
+
   let deducedStayType: StayType = 'nachmieter';
-  if (data.stayType === 'COUCHSURFING' || data.price === 0) {
+  if (backendStayType === 'COUCHSURFING' || data.price === 0) {
     deducedStayType = 'couchsurfing';
-  } else if (data.stayType === 'ZWISCHENMIETE') {
+  } else if (backendStayType === 'ZWISCHENMIETE') {
     deducedStayType = 'zwischenmiete';
+  } else if (backendStayType === 'NACHMIETER') {
+    deducedStayType = 'nachmieter';
   }
 
+  const backendAptType = String(data.apartmentType || '').toUpperCase();
   let deducedAptType: ApartmentType = 'apartment';
-  if (data.apartmentType === 'WG') deducedAptType = 'WG';
-  if (data.apartmentType === 'STUDIO') deducedAptType = 'studio';
+  if (backendAptType === 'WG') deducedAptType = 'WG';
+  if (backendAptType === 'STUDIO') deducedAptType = 'studio';
 
   return {
     id: String(data.id || Math.random()),
@@ -81,6 +87,7 @@ const mapBackendToFrontend = (backendOffer: any): Offer => {
     stayType: deducedStayType,
     apartmentType: deducedAptType,
     moveInDate: data.availableFrom || new Date().toISOString().split('T')[0],
+    moveOutDate: data.availableUntil || undefined, // Map back endpoint parameters cleanly to card frames
     area: data.area || 0,
     description: data.description || 'No description available.',
     images: data.photoUrls && data.photoUrls.length > 0
@@ -145,7 +152,6 @@ export function OffersProvider({ children }: { children: ReactNode }) {
       backendAptType = 'WG';
     }
 
-    // 1. Pack text attributes inside our baseline metadata object block
     const offerMetadata = {
       ownerId: Number(frontendOffer.createdBy) || 1,
       stayType: frontendOffer.stayType.toUpperCase(),
@@ -172,31 +178,25 @@ export function OffersProvider({ children }: { children: ReactNode }) {
         visitorsPermission: frontendOffer.specifics.visitors || 'allowed'
       },
       availableFrom: frontendOffer.moveInDate,
-      availableUntil: null
+      availableUntil: frontendOffer.moveOutDate || null // Maps value seamlessly into your Java LocalDate backend endpoints
     };
 
-    // 2. Initialize browser FormData engine container instance
     const formData = new FormData();
-
-    // 3. Bind metadata block context as a Blob flagged with explicit application/json formatting headers
     formData.append(
         'offer',
         new Blob([JSON.stringify(offerMetadata)], { type: 'application/json' })
     );
 
-    // 4. Append your native binary device file objects array cleanly onto the form
     binaryFiles.forEach((file) => {
       formData.append('files', file);
     });
 
     try {
-      // 5. Fire raw Multi-Part envelope across network wire directly to Spring controller endpoint
       await axios.post('http://localhost:8080/offers', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         }
       });
-
       await refreshOffers();
     } catch (err) {
       console.error("Error creating multipart listing on the backend:", err);

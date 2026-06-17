@@ -10,12 +10,13 @@ interface OfferFormData {
     name: string;
     address: string;
     moveInDate: string;
+    moveOutDate: string;
     area: string;
     priceBreakdown: PriceBreakdown;
     genderBreakdown: GenderBreakdown;
     specifics: OfferSpecifics;
     description: string;
-    images: File[]; // Tracks raw binary native file objects from device storage
+    images: File[];
 }
 
 export function CreateOfferPage() {
@@ -23,13 +24,14 @@ export function CreateOfferPage() {
     const { addOffer } = useOffers();
     const { user } = useAuth();
     const [currentStep, setCurrentStep] = useState(1);
-    const [agreedWithLandlord, setAgreedWithLandlord] = useState(false); // New explicit verification state tracker
+    const [agreedWithLandlord, setAgreedWithLandlord] = useState(false);
     const [formData, setFormData] = useState<OfferFormData>({
         stayType: null,
         apartmentType: null,
         name: '',
         address: '',
         moveInDate: '',
+        moveOutDate: '',
         area: '',
         priceBreakdown: { kaltmiete: 0, nebenkosten: 0, kaution: 0, ablose: 0, sonstiges: 0 },
         genderBreakdown: { males: 0, females: 0, diverse: 0 },
@@ -51,7 +53,11 @@ export function CreateOfferPage() {
             case 1: return formData.stayType !== null;
             case 2: return formData.apartmentType !== null;
             case 3: return formData.name.trim() !== '';
-            case 4: return formData.address.trim() !== '' && formData.moveInDate !== '';
+            case 4:
+                if (formData.stayType === 'zwischenmiete') {
+                    return formData.address.trim() !== '' && formData.moveInDate !== '' && formData.moveOutDate !== '';
+                }
+                return formData.address.trim() !== '' && formData.moveInDate !== '';
             case 5: return true;
             case 6: return true;
             case 7: return true;
@@ -76,14 +82,11 @@ export function CreateOfferPage() {
 
     const handleSubmit = async () => {
         if (!formData.stayType || !formData.apartmentType) return;
-
-        // Final code enforcement barrier checking context permissions before API hits
         if (formData.stayType === 'zwischenmiete' && !agreedWithLandlord) return;
 
         const totalPrice = formData.priceBreakdown.kaltmiete + formData.priceBreakdown.nebenkosten;
 
         try {
-            // Isolate files away from text properties mapping payload
             const { images, ...textMetadata } = formData;
 
             await addOffer({
@@ -92,6 +95,7 @@ export function CreateOfferPage() {
                 stayType: textMetadata.stayType || 'nachmieter',
                 apartmentType: textMetadata.apartmentType || 'apartment',
                 moveInDate: textMetadata.moveInDate,
+                moveOutDate: textMetadata.stayType === 'zwischenmiete' ? textMetadata.moveOutDate : undefined,
                 area: Number(textMetadata.area) || 0,
                 description: textMetadata.description,
                 genderBreakdown: textMetadata.genderBreakdown,
@@ -136,6 +140,8 @@ export function CreateOfferPage() {
                     <StepLocation
                         address={formData.address}
                         moveInDate={formData.moveInDate}
+                        moveOutDate={formData.moveOutDate}
+                        stayType={formData.stayType}
                         area={formData.area}
                         onChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
                     />
@@ -233,7 +239,6 @@ export function CreateOfferPage() {
                 ) : (
                     <button
                         onClick={handleSubmit}
-                        // Conditionally blocks submissions when dealing with an unverified Zwischenmiete
                         disabled={formData.stayType === 'zwischenmiete' && !agreedWithLandlord}
                         className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                     >
@@ -331,18 +336,22 @@ function StepName({ value, onChange }: { value: string; onChange: (value: string
 function StepLocation({
                           address,
                           moveInDate,
+                          moveOutDate,
+                          stayType,
                           area,
                           onChange,
                       }: {
     address: string;
     moveInDate: string;
+    moveOutDate: string;
+    stayType: StayType | null;
     area: string;
     onChange: (field: string, value: string) => void;
 }) {
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Location details</h2>
-            <p className="text-gray-600 mb-6">Where is your accommodation located?</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Location & Availability details</h2>
+            <p className="text-gray-600 mb-6">Where and when is your accommodation located?</p>
 
             <div className="space-y-4">
                 <div>
@@ -358,16 +367,33 @@ function StepLocation({
                     />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Move-in Date *
-                    </label>
-                    <input
-                        type="date"
-                        value={moveInDate}
-                        onChange={(e) => onChange('moveInDate', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Available From *
+                        </label>
+                        <input
+                            type="date"
+                            value={moveInDate}
+                            onChange={(e) => onChange('moveInDate', e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                        />
+                    </div>
+
+                    {stayType === 'zwischenmiete' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Available Until *
+                            </label>
+                            <input
+                                type="date"
+                                value={moveOutDate}
+                                min={moveInDate}
+                                onChange={(e) => onChange('moveOutDate', e.target.value)}
+                                className="w-full px-4 py-3 border border-amber-300 bg-amber-50/30 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <div>
@@ -637,12 +663,9 @@ function StepDescription({ value, onChange }: { value: string; onChange: (value:
 function StepPhotos({ files, onChange }: { files: File[]; onChange: (value: File[]) => void }) {
     const [previews, setPreviews] = useState<string[]>([]);
 
-    // Keep transient URL object states in sync with file choices to prevent memory leaks
     useEffect(() => {
         const objectUrls = files.map(file => URL.createObjectURL(file));
         setPreviews(objectUrls);
-
-        // Explicit cleanup callback block to free browser file allocation handles
         return () => objectUrls.forEach(url => URL.revokeObjectURL(url));
     }, [files]);
 
@@ -709,7 +732,6 @@ function StepPhotos({ files, onChange }: { files: File[]; onChange: (value: File
     );
 }
 
-// Updated interface declarations inside StepReview parameter to handle checkbox updates cleanly
 function StepReview({
                         formData,
                         agreed,
@@ -723,7 +745,6 @@ function StepReview({
     const totalTenants = formData.genderBreakdown.males + formData.genderBreakdown.females + formData.genderBreakdown.diverse;
     const [reviewPreviews, setReviewPreviews] = useState<string[]>([]);
 
-    // Load transient image URLs inside summary frame context safely
     useEffect(() => {
         const objectUrls = formData.images.map(file => URL.createObjectURL(file));
         setReviewPreviews(objectUrls);
@@ -770,6 +791,14 @@ function StepReview({
                             {formData.moveInDate ? new Date(formData.moveInDate).toLocaleDateString('de-DE') : ''}
                         </p>
                     </div>
+                    {formData.stayType === 'zwischenmiete' && formData.moveOutDate && (
+                        <div>
+                            <p className="text-sm text-gray-600 mb-1">Move-out Date (Until)</p>
+                            <p className="font-medium text-gray-900">
+                                {new Date(formData.moveOutDate).toLocaleDateString('de-DE')}
+                            </p>
+                        </div>
+                    )}
                     {formData.area && (
                         <div>
                             <p className="text-sm text-gray-600 mb-1">Area</p>
@@ -832,7 +861,6 @@ function StepReview({
                     </div>
                 )}
 
-                {/* Conditional warning box rendered contextually for active Zwischenmiete paths */}
                 {formData.stayType === 'zwischenmiete' && (
                     <div className="mt-6 pt-6 border-t border-gray-200">
                         <label className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200 cursor-pointer select-none">
