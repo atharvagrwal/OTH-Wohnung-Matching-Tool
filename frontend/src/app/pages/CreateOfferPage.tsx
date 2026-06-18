@@ -70,13 +70,21 @@ export function CreateOfferPage() {
 
     const handleNext = () => {
         if (canProceed() && currentStep < totalSteps) {
-            setCurrentStep(prev => prev + 1);
+            if (currentStep === 5 && (formData.apartmentType === 'studio' || formData.apartmentType === 'apartment')) {
+                setCurrentStep(7);
+            } else {
+                setCurrentStep(prev => prev + 1);
+            }
         }
     };
 
     const handleBack = () => {
         if (currentStep > 1) {
-            setCurrentStep(prev => prev - 1);
+            if (currentStep === 7 && (formData.apartmentType === 'studio' || formData.apartmentType === 'apartment')) {
+                setCurrentStep(5);
+            } else {
+                setCurrentStep(prev => prev - 1);
+            }
         }
     };
 
@@ -85,6 +93,9 @@ export function CreateOfferPage() {
         if (formData.stayType === 'zwischenmiete' && !agreedWithLandlord) return;
 
         const totalPrice = formData.priceBreakdown.kaltmiete + formData.priceBreakdown.nebenkosten;
+
+        const isSharedWG = formData.apartmentType === 'WG';
+        const finalGenderBreakdown = isSharedWG ? formData.genderBreakdown : { males: 0, females: 0, diverse: 0 };
 
         try {
             const { images, ...textMetadata } = formData;
@@ -98,7 +109,7 @@ export function CreateOfferPage() {
                 moveOutDate: textMetadata.stayType === 'zwischenmiete' ? textMetadata.moveOutDate : undefined,
                 area: Number(textMetadata.area) || 0,
                 description: textMetadata.description,
-                genderBreakdown: textMetadata.genderBreakdown,
+                genderBreakdown: finalGenderBreakdown,
                 priceBreakdown: textMetadata.priceBreakdown,
                 totalPrice,
                 specifics: textMetadata.specifics,
@@ -194,23 +205,35 @@ export function CreateOfferPage() {
         }
     };
 
+    const displayStepLabel = (currentStep === 6 && (formData.apartmentType === 'studio' || formData.apartmentType === 'apartment'))
+        ? 'Step 5 of 9'
+        : (formData.apartmentType === 'studio' || formData.apartmentType === 'apartment') && currentStep > 5
+            ? `Step ${currentStep - 1} of 9`
+            : `Step ${currentStep} of 10`;
+
     return (
         <div className="max-w-4xl mx-auto">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Create New Offer</h1>
-                <p className="text-gray-600">Step {currentStep} of {totalSteps}</p>
+                <p className="text-gray-600">{displayStepLabel}</p>
             </div>
 
             <div className="mb-8">
                 <div className="flex items-center gap-2">
-                    {Array.from({ length: totalSteps }).map((_, index) => (
-                        <div
-                            key={index}
-                            className={`h-2 flex-1 rounded-full transition-colors ${
-                                index < currentStep ? 'bg-blue-600' : 'bg-gray-200'
-                            }`}
-                        />
-                    ))}
+                    {Array.from({ length: totalSteps }).map((_, index) => {
+                        const stepNum = index + 1;
+                        if (stepNum === 6 && (formData.apartmentType === 'studio' || formData.apartmentType === 'apartment')) {
+                            return null;
+                        }
+                        return (
+                            <div
+                                key={index}
+                                className={`h-2 flex-1 rounded-full transition-colors ${
+                                    stepNum <= currentStep ? 'bg-blue-600' : 'bg-gray-200'
+                                }`}
+                            />
+                        );
+                    })}
                 </div>
             </div>
 
@@ -402,9 +425,9 @@ function StepLocation({
                     </label>
                     <input
                         type="number"
-                        value={area}
+                        value={area === '0' || area === '' ? '' : area}
                         onChange={(e) => onChange('area', e.target.value)}
-                        placeholder="18"
+                        placeholder="0"
                         min="0"
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                     />
@@ -422,7 +445,7 @@ function StepPricing({
     onChange: (value: PriceBreakdown) => void;
 }) {
     const updateField = (field: keyof PriceBreakdown, value: string) => {
-        onChange({ ...priceBreakdown, [field]: Number(value) || 0 });
+        onChange({ ...priceBreakdown, [field]: value === '' ? 0 : Number(value) });
     };
 
     const total = priceBreakdown.kaltmiete + priceBreakdown.nebenkosten;
@@ -440,8 +463,9 @@ function StepPricing({
                         </label>
                         <input
                             type="number"
-                            value={priceBreakdown.kaltmiete}
+                            value={priceBreakdown.kaltmiete || ''}
                             onChange={(e) => updateField('kaltmiete', e.target.value)}
+                            placeholder="0"
                             min="0"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                         />
@@ -453,8 +477,9 @@ function StepPricing({
                         </label>
                         <input
                             type="number"
-                            value={priceBreakdown.nebenkosten}
+                            value={priceBreakdown.nebenkosten || ''}
                             onChange={(e) => updateField('nebenkosten', e.target.value)}
+                            placeholder="0"
                             min="0"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                         />
@@ -466,8 +491,9 @@ function StepPricing({
                         </label>
                         <input
                             type="number"
-                            value={priceBreakdown.kaution}
+                            value={priceBreakdown.kaution || ''}
                             onChange={(e) => updateField('kaution', e.target.value)}
+                            placeholder="0"
                             min="0"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                         />
@@ -479,8 +505,9 @@ function StepPricing({
                         </label>
                         <input
                             type="number"
-                            value={priceBreakdown.ablose || 0}
+                            value={priceBreakdown.ablose || ''}
                             onChange={(e) => updateField('ablose', e.target.value)}
+                            placeholder="0"
                             min="0"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                         />
@@ -492,8 +519,9 @@ function StepPricing({
                         </label>
                         <input
                             type="number"
-                            value={priceBreakdown.sonstiges || 0}
+                            value={priceBreakdown.sonstiges || ''}
                             onChange={(e) => updateField('sonstiges', e.target.value)}
+                            placeholder="0"
                             min="0"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                         />
@@ -519,7 +547,7 @@ function StepGenderBreakdown({
     onChange: (value: GenderBreakdown) => void;
 }) {
     const updateField = (field: keyof GenderBreakdown, value: string) => {
-        onChange({ ...genderBreakdown, [field]: Number(value) || 0 });
+        onChange({ ...genderBreakdown, [field]: value === '' ? 0 : Number(value) });
     };
 
     const total = genderBreakdown.males + genderBreakdown.females + genderBreakdown.diverse;
@@ -527,7 +555,7 @@ function StepGenderBreakdown({
     return (
         <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Gender breakdown in WG</h2>
-            <p className="text-gray-600 mb-6">How many people of each gender live in the apartment? (Leave at 0 for studio/single apartments)</p>
+            <p className="text-gray-600 mb-6">How many people of each gender live in the apartment?</p>
 
             <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -537,8 +565,9 @@ function StepGenderBreakdown({
                         </label>
                         <input
                             type="number"
-                            value={genderBreakdown.males}
+                            value={genderBreakdown.males || ''}
                             onChange={(e) => updateField('males', e.target.value)}
+                            placeholder="0"
                             min="0"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                         />
@@ -550,8 +579,9 @@ function StepGenderBreakdown({
                         </label>
                         <input
                             type="number"
-                            value={genderBreakdown.females}
+                            value={genderBreakdown.females || ''}
                             onChange={(e) => updateField('females', e.target.value)}
+                            placeholder="0"
                             min="0"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                         />
@@ -563,8 +593,9 @@ function StepGenderBreakdown({
                         </label>
                         <input
                             type="number"
-                            value={genderBreakdown.diverse}
+                            value={genderBreakdown.diverse || ''}
                             onChange={(e) => updateField('diverse', e.target.value)}
+                            placeholder="0"
                             min="0"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                         />
@@ -650,11 +681,10 @@ function StepDescription({ value, onChange }: { value: string; onChange: (value:
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 rows={10}
-                placeholder="Tell potential tenants about the room, amenities, location, public transport access, nearby facilities, the people in the WG, and anything else that would help them make a decision..."
+                placeholder="Tell potential tenants about the room, amenities, location..."
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
                 autoFocus
             />
-
             <p className="text-sm text-gray-500 mt-2">{value.length} characters</p>
         </div>
     );
@@ -715,7 +745,7 @@ function StepPhotos({ files, onChange }: { files: File[]; onChange: (value: File
                                 <button
                                     type="button"
                                     onClick={() => removeImage(index)}
-                                    className="absolute top-2 right-2 w-8 h-8 bg-red-600 text-white rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-md hover:bg-red-700"
+                                    className="absolute top-2 right-2 w-8 h-8 bg-red-600 text-white rounded-full opacity-100 flex items-center justify-center shadow-md hover:bg-red-700"
                                 >
                                     <X size={16} />
                                 </button>
@@ -723,10 +753,7 @@ function StepPhotos({ files, onChange }: { files: File[]; onChange: (value: File
                         ))}
                     </div>
                 )}
-
-                <p className="text-sm text-gray-500">
-                    {files.length} {files.length === 1 ? 'file' : 'files'} stacked for streaming
-                </p>
+                <p className="text-sm text-gray-500">{files.length} stacked files</p>
             </div>
         </div>
     );
@@ -756,6 +783,8 @@ function StepReview({
         const labels = { zwischenmiete: 'Zwischenmiete', nachmieter: 'Nachmieter', couchsurfing: 'Couchsurfing' };
         return labels[type];
     };
+
+    const isSharedWG = formData.apartmentType === 'WG';
 
     return (
         <div>
@@ -829,7 +858,7 @@ function StepReview({
                     </div>
                 </div>
 
-                {totalTenants > 0 && (
+                {isSharedWG && totalTenants > 0 && (
                     <div>
                         <p className="text-sm text-gray-600 mb-1">Gender Breakdown</p>
                         <p className="font-medium text-gray-900">

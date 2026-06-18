@@ -35,7 +35,8 @@ export interface Offer {
   stayType: StayType;
   apartmentType: ApartmentType;
   moveInDate: string;
-  moveOutDate?: string; // Track structural backend expiration timelines
+  moveOutDate?: string;
+  createdAt?: string; // FIXED: Added to interface to resolve TS2339 compiler error on the Feed Page
   area: number;
   description: string;
   images: string[];
@@ -87,7 +88,8 @@ const mapBackendToFrontend = (backendOffer: any): Offer => {
     stayType: deducedStayType,
     apartmentType: deducedAptType,
     moveInDate: data.availableFrom || new Date().toISOString().split('T')[0],
-    moveOutDate: data.availableUntil || undefined, // Map back endpoint parameters cleanly to card frames
+    moveOutDate: data.availableUntil || undefined,
+    createdAt: data.createdAt || undefined, // FIXED: Maps backend timestamp into the runtime frontend model
     area: data.area || 0,
     description: data.description || 'No description available.',
     images: data.photoUrls && data.photoUrls.length > 0
@@ -178,7 +180,7 @@ export function OffersProvider({ children }: { children: ReactNode }) {
         visitorsPermission: frontendOffer.specifics.visitors || 'allowed'
       },
       availableFrom: frontendOffer.moveInDate,
-      availableUntil: frontendOffer.moveOutDate || null // Maps value seamlessly into your Java LocalDate backend endpoints
+      availableUntil: frontendOffer.moveOutDate || null
     };
 
     const formData = new FormData();
