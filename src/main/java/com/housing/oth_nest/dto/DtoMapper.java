@@ -100,13 +100,14 @@ public final class DtoMapper {
         User applicant = application.getApplicant();
 
         return ApplicationResponseDto.builder()
-                .id(application.getId())
+                .id(application.getId() != null ? String.valueOf(application.getId()) : null)
                 .message(application.getMessage())
-                .appliedAt(application.getAppliedAt())
-                .offerId(offer != null ? offer.getId() : null)
-                .offerTitle(offer != null && offer.getApartment() != null
-                        ? offer.getApartment().getTitle() : null)
-                .applicantId(applicant != null ? applicant.getId() : null)
+                .status(application.getStatus() != null ? application.getStatus().name().toLowerCase() : "pending")
+                .declineMessage(application.getDeclineMessage())
+                .createdAt(application.getCreatedAt() != null ? application.getCreatedAt().toString() : null)
+                .offerId(offer != null && offer.getId() != null ? String.valueOf(offer.getId()) : null)
+                .offerTitle(offer != null && offer.getApartment() != null ? offer.getApartment().getTitle() : null)
+                .applicantId(applicant != null && applicant.getId() != null ? String.valueOf(applicant.getId()) : null)
                 .applicantName(applicant != null ? applicant.getName() : null)
                 .applicantEmail(applicant != null ? applicant.getEmail() : null)
                 .build();
