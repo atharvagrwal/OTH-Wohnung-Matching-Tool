@@ -1,6 +1,7 @@
 package com.housing.oth_nest.dto;
 
 import com.housing.oth_nest.model.StayType;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -22,6 +23,9 @@ public class OfferRequestDto {
     @NotNull
     private ApartmentDto apartment;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate availableFrom;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate availableUntil;
 }

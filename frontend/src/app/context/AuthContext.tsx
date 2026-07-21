@@ -23,18 +23,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     // Mock login - simulates SSO from university portal
-    // In production, this would authenticate through OTH portal and import user data
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    // Mock user data imported from university portal
-    setUser({
-      id: '1',
-      email,
-      name: 'Max Mustermann',
-      gender: 'male',
-      dateOfBirth: '2000-03-15',
-      role: 'student',
-    });
+    // Normalize inputs to prevent whitespace or case-sensitivity mismatch bugs
+    const trimmedEmail = email.trim().toLowerCase();
+
+    // Condition validation matching your clean data.sql values
+    if (trimmedEmail === 'max.mustermann@stud.oth-regensburg.de' && password === 'password123') {
+      setUser({
+        id: '1',
+        email: trimmedEmail,
+        name: 'Max Mustermann',
+        gender: 'male',
+        dateOfBirth: '2000-03-15',
+        role: 'student',
+      });
+    } else if (trimmedEmail === 'anna.schmidt@stud.oth-regensburg.de' && password === 'secure456') {
+      setUser({
+        id: '2',
+        email: trimmedEmail,
+        name: 'Anna Schmidt',
+        gender: 'female',
+        dateOfBirth: '2001-07-22',
+        role: 'student',
+      });
+    } else {
+      // This error instance gets handled directly inside the catch block of your LoginPage.tsx
+      throw new Error('Invalid OTH Portal credentials. Please check your email or password.');
+    }
   };
 
   const logout = () => {
@@ -42,16 +58,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        logout,
-        isAuthenticated: !!user,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+      <AuthContext.Provider
+          value={{
+            user,
+            login,
+            logout,
+            isAuthenticated: !!user,
+          }}
+      >
+        {children}
+      </AuthContext.Provider>
   );
 }
 
