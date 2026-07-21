@@ -2,7 +2,6 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { useOffers, StayType } from '../context/OffersContext';
 import { useAuth } from '../context/AuthContext';
 import { useApplications } from '../context/ApplicationsContext';
-import { useNotifications } from '../context/NotificationsContext';
 import { MapPin, Maximize2, Users, Calendar, Mail, ArrowLeft, Check, X, Minus, Send, UserCheck, Ban } from 'lucide-react';
 import { useState } from 'react';
 import { ApplyModal } from '../components/ApplyModal';
@@ -15,7 +14,7 @@ export function OfferDetailPage() {
   const { user } = useAuth();
   const { getOfferById, markOfferAsInactive } = useOffers();
   const { addApplication, hasUserApplied, getApplicationsByOffer } = useApplications();
-  const { addNotification } = useNotifications();
+
   const offer = getOfferById(id || '');
   const [selectedImage, setSelectedImage] = useState(0);
   const [showApplyModal, setShowApplyModal] = useState(false);
@@ -63,27 +62,21 @@ export function OfferDetailPage() {
     return <Minus size={20} className="text-yellow-600" />;
   };
 
-  const handleApply = (message: string) => {
+  const handleApply = async (message: string) => {
     if (!offer || !user) return;
 
-    addApplication({
-      offerId: offer.id,
-      applicantId: user.id,
-      applicantName: user.name,
-      applicantEmail: user.email,
-      message,
-    });
+    try {
+      await addApplication({
+        offerId: offer.id,
+        applicantId: user.id,
+        message,
+      });
 
-    addNotification({
-      userId: offer.createdBy,
-      type: 'application',
-      title: 'New Application',
-      message: `${user.name} applied for ${offer.name}`,
-      applicationId: String(Date.now()),
-      offerId: offer.id,
-    });
-
-    toast.success('Application submitted successfully! Check "My Applications" for updates.');
+      toast.success('Application submitted successfully! Check "My Applications" for updates.');
+    } catch (error) {
+      toast.error('Failed to submit application. Please try again.');
+      console.error('Error submitting application:', error);
+    }
   };
 
   const handleDisableOffer = () => {

@@ -15,7 +15,6 @@ export interface OfferResponse {
     };
     owner: {
         id: number;
-        // add any user properties your partner has in User model
     };
     availableFrom: string;
     availableUntil: string;
@@ -61,5 +60,57 @@ export const apiService = {
         });
         if (!response.ok) throw new Error('Failed to deactivate offer');
         return response.json();
+    },
+
+    async createApplication(data: { offerId: number; applicantId: number; message: string }) {
+        const response = await fetch(`${API_BASE_URL}/applications`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to submit application');
+        return response.json();
+    },
+
+    async updateApplicationStatus(id: string, status: string, declineMessage?: string) {
+        const response = await fetch(`${API_BASE_URL}/applications/${id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: status.toUpperCase(), declineMessage }),
+        });
+        if (!response.ok) throw new Error('Failed to update application status');
+        return response.json();
+    },
+
+    async getApplicationsByOffer(offerId: string) {
+        const response = await fetch(`${API_BASE_URL}/applications/offer/${offerId}`);
+        if (!response.ok) throw new Error('Failed to fetch offer applications');
+        return response.json();
+    },
+
+    async getApplicationsByApplicant(applicantId: string) {
+        const response = await fetch(`${API_BASE_URL}/applications/applicant/${applicantId}`);
+        if (!response.ok) throw new Error('Failed to fetch applicant applications');
+        return response.json();
+    },
+
+    async hasUserApplied(offerId: string, userId: string): Promise<boolean> {
+        const response = await fetch(`${API_BASE_URL}/applications/has-applied?offerId=${offerId}&userId=${userId}`);
+        if (!response.ok) return false;
+        return response.json();
+    },
+
+    async getUserNotifications(userId: string) {
+        const response = await fetch(`${API_BASE_URL}/notifications/user/${userId}`);
+        if (!response.ok) throw new Error('Failed to fetch notifications');
+        return response.json();
+    },
+
+    async markNotificationAsRead(id: string) {
+        await fetch(`${API_BASE_URL}/notifications/${id}/read`, { method: 'PATCH' });
+    },
+
+    async markAllNotificationsAsRead(userId: string) {
+        await fetch(`${API_BASE_URL}/notifications/user/${userId}/read-all`, { method: 'PATCH' });
     }
 };

@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { apiService } from '../../services/api';
+import { useAuth } from './AuthContext';
 
 export type NotificationType = 'application' | 'approval' | 'decline' | 'offer' | 'final-decline';
 
@@ -16,72 +18,49 @@ export interface Notification {
 
 interface NotificationsContextType {
   notifications: Notification[];
-  addNotification: (notification: Omit<Notification, 'id' | 'isRead' | 'createdAt'>) => void;
-  markAsRead: (id: string) => void;
-  markAllAsRead: (userId: string) => void;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
   getUserNotifications: (userId: string) => Notification[];
   getUnreadCount: (userId: string) => number;
+  refreshNotifications: () => Promise<void>;
 }
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
-// Demo notifications for demonstration purposes
-const demoNotifications: Notification[] = [
-  {
-    id: 'notif-1',
-    userId: '1',
-    type: 'application',
-    title: 'New Application',
-    message: 'Anna Schmidt applied for Cozy WG Room in City Center',
-    applicationId: 'demo-app-1',
-    offerId: '1',
-    isRead: false,
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'notif-2',
-    userId: '1',
-    type: 'application',
-    title: 'New Application',
-    message: 'Lisa Bauer applied for Cozy WG Room in City Center',
-    applicationId: 'demo-app-3',
-    offerId: '1',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>(demoNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { user } = useAuth();
 
-  const addNotification = (notification: Omit<Notification, 'id' | 'isRead' | 'createdAt'>) => {
-    const newNotification: Notification = {
-      ...notification,
-      id: String(Date.now()),
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    };
-    setNotifications(prev => [newNotification, ...prev]);
+  const refreshNotifications = useCallback(async () => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+    try {
+      const liveNotifications = await apiService.getUserNotifications(user.id);
+      setNotifications(liveNotifications);
+    } catch (err) {
+      console.error('Failed to sync notifications with backend:', err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    refreshNotifications();
+  }, [refreshNotifications]);
+
+  const markAsRead = async (id: string) => {
+    await apiService.markNotificationAsRead(id);
+    await refreshNotifications();
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(notif => (notif.id === id ? { ...notif, isRead: true } : notif))
-    );
-  };
-
-  const markAllAsRead = (userId: string) => {
-    setNotifications(prev =>
-      prev.map(notif =>
-        notif.userId === userId ? { ...notif, isRead: true } : notif
-      )
-    );
+  const markAllAsRead = async () => {
+    if (!user) return;
+    await apiService.markAllNotificationsAsRead(user.id);
+    await refreshNotifications();
   };
 
   const getUserNotifications = (userId: string) => {
-    return notifications
-      .filter(notif => notif.userId === userId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return notifications.filter(notif => notif.userId === userId);
   };
 
   const getUnreadCount = (userId: string) => {
@@ -89,18 +68,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <NotificationsContext.Provider
-      value={{
-        notifications,
-        addNotification,
-        markAsRead,
-        markAllAsRead,
-        getUserNotifications,
-        getUnreadCount,
-      }}
-    >
-      {children}
-    </NotificationsContext.Provider>
+      <NotificationsContext.Provider
+          value={{
+            notifications,
+            markAsRead,
+            markAllAsRead,
+            getUserNotifications,
+            getUnreadCount,
+            refreshNotifications,
+          }}
+      >
+        {children}
+      </NotificationsContext.Provider>
   );
 }
 
