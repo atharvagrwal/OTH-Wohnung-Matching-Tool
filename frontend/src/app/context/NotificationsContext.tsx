@@ -48,15 +48,34 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     refreshNotifications();
   }, [refreshNotifications]);
 
+  //mark  notification as read
   const markAsRead = async (id: string) => {
-    await apiService.markNotificationAsRead(id);
-    await refreshNotifications();
+    setNotifications(prev =>
+        prev.map(n => (n.id === id ? { ...n, isRead: true } : n))
+    );
+
+    try {
+      await apiService.markNotificationAsRead(id);
+    } catch (err) {
+      console.error('Failed to mark notification as read on backend:', err);
+      refreshNotifications(); // revert to server truth if request failed
+    }
   };
 
+  //mark all notifications as read
   const markAllAsRead = async () => {
     if (!user) return;
-    await apiService.markAllNotificationsAsRead(user.id);
-    await refreshNotifications();
+
+    setNotifications(prev =>
+        prev.map(n => ({ ...n, isRead: true }))
+    );
+
+    try {
+      await apiService.markAllNotificationsAsRead(user.id);
+    } catch (err) {
+      console.error('Failed to mark all notifications as read on backend:', err);
+      refreshNotifications(); //revert to server truth if request failed
+    }
   };
 
   const getUserNotifications = (userId: string) => {

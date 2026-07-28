@@ -5,6 +5,7 @@ import { useApplications } from '../context/ApplicationsContext';
 import { useChats } from '../context/ChatsContext';
 import { apiService } from '../../services/api';
 import { Application } from '../context/ApplicationsContext';
+import { DeclineModal } from '../components/DeclineApplicationModal.tsx';
 import { ArrowLeft, Check, X, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,7 +20,9 @@ export function ApplicationsManagementPage() {
   const [offerApplications, setOfferApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
 
-  //fetch applications specifically for this offer directly from backend
+  //modal state for declining
+  const [declineTarget, setDeclineTarget] = useState<{ id: string; name: string } | null>(null);
+
   const fetchOfferApplications = useCallback(async () => {
     if (!offerId) return;
     try {
@@ -57,21 +60,25 @@ export function ApplicationsManagementPage() {
       await updateApplicationStatus(applicationId, 'approved');
       createChat(applicationId, offer.id, offer.name, [offer.createdBy, applicantId]);
       toast.success(`${applicantName}'s application approved! Chat created.`);
-      await fetchOfferApplications(); //refresh list after status change
+      await fetchOfferApplications();
     } catch (error) {
       console.error('Failed to approve application:', error);
-      toast.error('Could not approve application. Please try again.');
+      toast.error('Could not approve application.');
     }
   };
 
-  const handleDecline = async (applicationId: string) => {
+  const handleConfirmDecline = async (declineMessage?: string) => {
+    if (!declineTarget) return;
+
     try {
-      await updateApplicationStatus(applicationId, 'declined');
-      toast.info('Application declined.');
-      await fetchOfferApplications(); //refresh list after status change
+      //passes the optional decline message to the backend
+      await updateApplicationStatus(declineTarget.id, 'declined', declineMessage);
+      toast.info(`Application for ${declineTarget.name} declined.`);
+      setDeclineTarget(null);
+      await fetchOfferApplications();
     } catch (error) {
       console.error('Failed to decline application:', error);
-      toast.error('Could not decline application. Please try again.');
+      toast.error('Could not decline application.');
     }
   };
 
@@ -152,7 +159,7 @@ export function ApplicationsManagementPage() {
                                 Approve & Start Chat
                               </button>
                               <button
-                                  onClick={() => handleDecline(app.id)}
+                                  onClick={() => setDeclineTarget({ id: app.id, name: app.applicantName })}
                                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
                               >
                                 <X size={20} />
@@ -204,7 +211,7 @@ export function ApplicationsManagementPage() {
                     </h2>
                     <div className="space-y-4">
                       {declinedApplications.map((app) => (
-                          <div key={app.id} className="bg-white rounded-lg shadow-sm border p-6 opacity-60">
+                          <div key={app.id} className="bg-white rounded-lg shadow-sm border p-6 opacity-75">
                             <div className="flex items-start justify-between">
                               <div>
                                 <h3 className="font-semibold text-lg text-gray-900">{app.applicantName}</h3>
@@ -214,6 +221,12 @@ export function ApplicationsManagementPage() {
                         Declined
                       </span>
                             </div>
+
+                            {app.declineMessage && (
+                                <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-700">
+                                  <strong>Reason provided:</strong> {app.declineMessage}
+                                </div>
+                            )}
                           </div>
                       ))}
                     </div>
@@ -221,6 +234,13 @@ export function ApplicationsManagementPage() {
               )}
             </>
         )}
+
+        <DeclineModal
+            isOpen={Boolean(declineTarget)}
+            onClose={() => setDeclineTarget(null)}
+            onSubmit={handleConfirmDecline}
+            applicantName={declineTarget?.name || ''}
+        />
       </div>
   );
 }
