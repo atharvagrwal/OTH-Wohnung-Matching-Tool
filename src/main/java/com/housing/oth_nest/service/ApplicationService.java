@@ -26,16 +26,19 @@ public class ApplicationService {
     private final OfferRepository offerRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final ChatService chatService;
 
     public ApplicationService(
             ApplicationRepository applicationRepository,
             OfferRepository offerRepository,
             UserRepository userRepository,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            ChatService chatService) {
         this.applicationRepository = applicationRepository;
         this.offerRepository = offerRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.chatService = chatService;
     }
 
     @Transactional
@@ -99,11 +102,13 @@ public class ApplicationService {
 
         application = applicationRepository.save(application);
 
-        //trigger notification to applicant
         User applicant = application.getApplicant();
         Offer offer = application.getOffer();
 
         if (updateDto.getStatus() == ApplicationStatus.APPROVED) {
+            //create chat room entity between owner and applicant
+            chatService.createOrGetChatForApplication(application.getId());
+
             notificationService.createNotification(
                     applicant,
                     NotificationType.APPROVAL,
@@ -124,6 +129,51 @@ public class ApplicationService {
         }
 
         return DtoMapper.toApplicationResponse(application);
+    }
+
+    //offering the apartment to the candidate
+    @Transactional
+    public void finalizeOfferToApplicant(Long applicationId) {
+        Application selectedApplication = applicationRepository.findWithDetailsById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found: " + applicationId));
+
+        Offer offer = selectedApplication.getOffer();
+        User selectedApplicant = selectedApplication.getApplicant();
+
+        //mark selected application as offered
+        selectedApplication.setStatus(ApplicationStatus.OFFERED);
+        applicationRepository.save(selectedApplication);
+
+        //mark the offer as inactive
+        offer.setActive(false);
+        offerRepository.save(offer);
+
+        //notify the chosen applicant
+        notificationService.createNotification(
+                selectedApplicant,
+                NotificationType.OFFER,
+                "Room Offered",
+                "You have been chosen for " + offer.getApartment().getTitle() + "! Coordinate details via chat",
+                selectedApplication.getId(),
+                offer.getId()
+        );
+
+        //notify all other applicants that the room was given to someone else
+        List<Application> otherApplications = applicationRepository.findByOffer_Id(offer.getId())
+                .stream()
+                .filter(app -> !app.getId().equals(applicationId))
+                .toList();
+
+        for (Application otherApp : otherApplications) {
+            notificationService.createNotification(
+                    otherApp.getApplicant(),
+                    NotificationType.DECLINE,
+                    "Listing Update",
+                    "The accommodation \"" + offer.getApartment().getTitle() + "\" has been offered to someone else at the moment",
+                    otherApp.getId(),
+                    offer.getId()
+            );
+        }
     }
 
     public ApplicationResponseDto getApplication(Long id) {

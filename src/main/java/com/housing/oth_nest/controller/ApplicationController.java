@@ -64,4 +64,10 @@ public class ApplicationController {
     public boolean hasApplied(@RequestParam Long offerId, @RequestParam Long userId) {
         return applicationService.hasUserApplied(offerId, userId);
     }
+
+    @PostMapping("/{id}/finalize-offer")
+    @Operation(summary = "Finalize and offer apartment to a specific applicant")
+    public void finalizeOffer(@PathVariable Long id) {
+        applicationService.finalizeOfferToApplicant(id);
+    }
 }

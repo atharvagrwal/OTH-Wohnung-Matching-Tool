@@ -2,6 +2,8 @@ package com.housing.oth_nest.dto;
 
 import com.housing.oth_nest.model.*;
 
+import java.util.List;
+
 public final class DtoMapper {
 
     private DtoMapper() {
@@ -137,5 +139,34 @@ public final class DtoMapper {
         apartment.setVisitorsPermission(dto.getVisitorsPermission());
         apartment.setPhotoUrls(dto.getPhotoUrls());
         return apartment;
+    }
+
+    public static ChatMessageResponseDto toChatMessageResponse(ChatMessage message) {
+        return ChatMessageResponseDto.builder()
+                .id(message.getId() != null ? String.valueOf(message.getId()) : null)
+                .chatId(message.getChat() != null ? String.valueOf(message.getChat().getId()) : null)
+                .senderId(message.getSender() != null ? String.valueOf(message.getSender().getId()) : null)
+                .senderName(message.getSender() != null ? message.getSender().getName() : null)
+                .content(message.getContent())
+                .isRead(message.isRead())
+                .sentAt(message.getSentAt() != null ? message.getSentAt().toString() : null)
+                .build();
+    }
+
+    public static ChatResponseDto toChatResponse(Chat chat, List<ChatMessage> messages, long unreadCount) {
+        return ChatResponseDto.builder()
+                .id(String.valueOf(chat.getId()))
+                .applicationId(chat.getApplication() != null ? String.valueOf(chat.getApplication().getId()) : null)
+                .offerId(chat.getOffer() != null ? String.valueOf(chat.getOffer().getId()) : null)
+                .offerTitle(chat.getOffer() != null && chat.getOffer().getApartment() != null
+                        ? chat.getOffer().getApartment().getTitle() : null)
+                .ownerId(chat.getOwner() != null ? String.valueOf(chat.getOwner().getId()) : null)
+                .ownerName(chat.getOwner() != null ? chat.getOwner().getName() : null)
+                .applicantId(chat.getApplicant() != null ? String.valueOf(chat.getApplicant().getId()) : null)
+                .applicantName(chat.getApplicant() != null ? chat.getApplicant().getName() : null)
+                .messages(messages != null ? messages.stream().map(DtoMapper::toChatMessageResponse).toList() : List.of())
+                .unreadCount(unreadCount)
+                .createdAt(chat.getCreatedAt() != null ? chat.getCreatedAt().toString() : null)
+                .build();
     }
 }
