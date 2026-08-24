@@ -157,6 +157,8 @@ public final class DtoMapper {
         return ChatResponseDto.builder()
                 .id(String.valueOf(chat.getId()))
                 .applicationId(chat.getApplication() != null ? String.valueOf(chat.getApplication().getId()) : null)
+                .applicationStatus(chat.getApplication() != null && chat.getApplication().getStatus() != null
+                        ? chat.getApplication().getStatus().name() : "PENDING")
                 .offerId(chat.getOffer() != null ? String.valueOf(chat.getOffer().getId()) : null)
                 .offerTitle(chat.getOffer() != null && chat.getOffer().getApartment() != null
                         ? chat.getOffer().getApartment().getTitle() : null)

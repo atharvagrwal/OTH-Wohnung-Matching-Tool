@@ -11,6 +11,7 @@ import java.util.List;
 public class ChatResponseDto {
     private String id;
     private String applicationId;
+    private String applicationStatus;
     private String offerId;
     private String offerTitle;
     private String ownerId;

@@ -35,6 +35,7 @@ export interface ChatMessageResponse {
 export interface ChatResponse {
     id: string;
     applicationId: string;
+    applicationStatus?: string;
     offerId: string;
     offerTitle: string;
     ownerId: string;

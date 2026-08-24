@@ -3,7 +3,7 @@ import {useAuth} from '../context/AuthContext';
 import {useChats} from '../context/ChatsContext';
 import {useApplications} from '../context/ApplicationsContext';
 import {apiService} from '../../services/api';
-import {Send, X, Check, Home} from 'lucide-react';
+import {Send, X, Check, Home, Lock} from 'lucide-react';
 import {toast} from 'sonner';
 
 export function ChatsPage() {
@@ -13,7 +13,6 @@ export function ChatsPage() {
 
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [messageInput, setMessageInput] = useState('');
-    const [declineMessage, setDeclineMessage] = useState('');
     const [showDeclineModal, setShowDeclineModal] = useState(false);
     const [showOfferModal, setShowOfferModal] = useState(false);
 
@@ -25,6 +24,7 @@ export function ChatsPage() {
     }, [chats, selectedChatId]);
 
     const selectedChat = chats.find(c => c.id === selectedChatId);
+    const isClosed = selectedChat?.applicationStatus === 'DECLINED';
 
     //mark as read when selected chat changes
     useEffect(() => {
@@ -35,7 +35,7 @@ export function ChatsPage() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!messageInput.trim() || !selectedChat || !user) return;
+        if (!messageInput.trim() || !selectedChat || !user || isClosed) return;
 
         try {
             await sendMessage(selectedChat.id, user.id, messageInput.trim());
@@ -65,14 +65,12 @@ export function ChatsPage() {
         try {
             await updateApplicationStatus(
                 selectedChat.applicationId,
-                'declined',
-                declineMessage.trim() || undefined
+                'declined'
             );
             await refreshChats();
             await refreshApplications();
             setShowDeclineModal(false);
-            setDeclineMessage('');
-            toast.info('Application declined and applicant notified');
+            toast.info(`Application for ${selectedChat.applicantName} declined and chat closed.`);
         } catch {
             toast.error('Could not decline application');
         }
@@ -110,6 +108,7 @@ export function ChatsPage() {
                         {chats.map(chat => {
                             const partner = chat.ownerId === user?.id ? chat.applicantName : chat.ownerName;
                             const lastMsg = chat.messages[chat.messages.length - 1];
+                            const chatIsClosed = chat.applicationStatus === 'DECLINED';
 
                             return (
                                 <button
@@ -123,12 +122,18 @@ export function ChatsPage() {
                                         <span className="font-semibold text-gray-900">{partner}</span>
                                         {chat.unreadCount > 0 && (
                                             <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
-                        {chat.unreadCount}
-                      </span>
+                                                {chat.unreadCount}
+                                            </span>
                                         )}
                                     </div>
                                     <span className="text-xs text-gray-500 truncate">{chat.offerName}</span>
-                                    {lastMsg && (
+                                    {chatIsClosed && (
+                                        <span className="inline-flex items-center gap-1 mt-1 text-[11px] text-red-600 font-medium">
+                                            <Lock size={12} /> Chat Closed
+                                        </span>
+                                    )}
+
+                                    {lastMsg && !chatIsClosed && (
                                         <p className="text-xs text-gray-400 mt-1 truncate">
                                             {lastMsg.senderName}: {lastMsg.text}
                                         </p>
@@ -147,6 +152,11 @@ export function ChatsPage() {
                                     <h2 className="font-semibold text-gray-900">{chatPartnerName}</h2>
                                     <p className="text-xs text-gray-500">{selectedChat.offerName}</p>
                                 </div>
+                                {isClosed && (
+                                    <span className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 text-xs rounded-full font-medium flex items-center gap-1">
+                                        <Lock size={12} /> Chat Closed
+                                    </span>
+                                )}
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/30">
@@ -181,41 +191,49 @@ export function ChatsPage() {
                                 )}
                             </div>
 
-                            <form onSubmit={handleSendMessage} className="p-3 border-t bg-white flex gap-2">
-                                <input
-                                    type="text"
-                                    value={messageInput}
-                                    onChange={e => setMessageInput(e.target.value)}
-                                    placeholder="Type your message..."
-                                    className="flex-1 px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={!messageInput.trim()}
-                                    className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                                >
-                                    <Send size={18}/>
-                                </button>
-                            </form>
+                            {!isClosed ? (
+                                <>
+                                    <form onSubmit={handleSendMessage} className="p-3 border-t bg-white flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={messageInput}
+                                            onChange={e => setMessageInput(e.target.value)}
+                                            placeholder="Type your message..."
+                                            className="flex-1 px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={!messageInput.trim()}
+                                            className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                        >
+                                            <Send size={18}/>
+                                        </button>
+                                    </form>
 
-                            {isOwner && (
-                                <div className="p-3 border-t bg-gray-50 flex gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowOfferModal(true)}
-                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
-                                    >
-                                        <Check size={18}/>
-                                        Offer this apartment to {selectedChat.applicantName}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowDeclineModal(true)}
-                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
-                                    >
-                                        <X size={18}/>
-                                        Decline
-                                    </button>
+                                    {isOwner && (
+                                        <div className="p-3 border-t bg-gray-50 flex gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowOfferModal(true)}
+                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
+                                            >
+                                                <Check size={18}/>
+                                                Offer this apartment to {selectedChat.applicantName}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowDeclineModal(true)}
+                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+                                            >
+                                                <X size={18}/>
+                                                Decline
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="p-4 border-t bg-gray-100 text-center text-sm text-gray-500 font-medium">
+                                    This conversation is closed. No further messages can be sent.
                                 </div>
                             )}
                         </>
@@ -257,24 +275,14 @@ export function ChatsPage() {
             {showDeclineModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-2">Decline Candidate</h2>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Decline <strong>{selectedChat?.applicantName}</strong>'s application. You can provide an
-                            optional reason:
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">Decline Application</h2>
+                        <p className="text-sm text-gray-600 mb-6">
+                            Are you sure you want to decline <strong>{selectedChat?.applicantName}</strong>'s application?
+                            This conversation will be closed.
                         </p>
-                        <textarea
-                            value={declineMessage}
-                            onChange={e => setDeclineMessage(e.target.value)}
-                            rows={3}
-                            placeholder="Reason for declining (optional)..."
-                            className="w-full px-3 py-2 border rounded-lg text-sm mb-4 outline-none focus:ring-2 focus:ring-red-500 resize-none"
-                        />
                         <div className="flex gap-3">
                             <button
-                                onClick={() => {
-                                    setShowDeclineModal(false);
-                                    setDeclineMessage('');
-                                }}
+                                onClick={() => setShowDeclineModal(false)}
                                 className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm font-medium"
                             >
                                 Cancel

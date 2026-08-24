@@ -4,11 +4,9 @@ import com.housing.oth_nest.dto.ChatMessageResponseDto;
 import com.housing.oth_nest.dto.ChatResponseDto;
 import com.housing.oth_nest.dto.DtoMapper;
 import com.housing.oth_nest.dto.SendMessageRequestDto;
+import com.housing.oth_nest.exception.BadRequestException;
 import com.housing.oth_nest.exception.ResourceNotFoundException;
-import com.housing.oth_nest.model.Application;
-import com.housing.oth_nest.model.Chat;
-import com.housing.oth_nest.model.ChatMessage;
-import com.housing.oth_nest.model.User;
+import com.housing.oth_nest.model.*;
 import com.housing.oth_nest.repository.ApplicationRepository;
 import com.housing.oth_nest.repository.ChatMessageRepository;
 import com.housing.oth_nest.repository.ChatRepository;
@@ -71,6 +69,11 @@ public class ChatService {
     public ChatMessageResponseDto sendMessage(Long chatId, SendMessageRequestDto request) {
         Chat chat = chatRepository.findById(chatId)
                 .orElseThrow(() -> new ResourceNotFoundException("Chat not found: " + chatId));
+
+        //block new messages if application is declined
+        if (chat.getApplication() != null && chat.getApplication().getStatus() == ApplicationStatus.DECLINED) {
+            throw new BadRequestException("Chat is closed");
+        }
 
         User sender = userRepository.findById(request.getSenderId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + request.getSenderId()));

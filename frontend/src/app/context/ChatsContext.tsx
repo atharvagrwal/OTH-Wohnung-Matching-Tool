@@ -14,6 +14,7 @@ export interface Message {
 export interface Chat {
     id: string;
     applicationId: string;
+    applicationStatus: string;
     offerId: string;
     offerName: string;
     ownerId: string;
@@ -53,6 +54,7 @@ export function ChatsProvider({children}: { children: ReactNode }) {
             const mappedChats: Chat[] = data.map(c => ({
                 id: c.id,
                 applicationId: c.applicationId,
+                applicationStatus: c.applicationStatus || 'PENDING',
                 offerId: c.offerId,
                 offerName: c.offerTitle || 'Accommodation',
                 ownerId: c.ownerId,
@@ -80,7 +82,7 @@ export function ChatsProvider({children}: { children: ReactNode }) {
     }, [user]);
 
     useEffect(() => {
-        refreshChats();
+        void refreshChats();
     }, [refreshChats]);
 
     const sendMessage = async (chatId: string, senderId: string, text: string) => {
