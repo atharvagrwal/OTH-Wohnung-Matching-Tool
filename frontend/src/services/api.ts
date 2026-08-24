@@ -22,6 +22,30 @@ export interface OfferResponse {
     createdAt: string;
 }
 
+export interface ChatMessageResponse {
+    id: string;
+    chatId: string;
+    senderId: string;
+    senderName: string;
+    content: string;
+    isRead: boolean;
+    sentAt: string;
+}
+
+export interface ChatResponse {
+    id: string;
+    applicationId: string;
+    offerId: string;
+    offerTitle: string;
+    ownerId: string;
+    ownerName: string;
+    applicantId: string;
+    applicantName: string;
+    messages: ChatMessageResponse[];
+    unreadCount: number;
+    createdAt: string;
+}
+
 export const apiService = {
     // Fetch active offers for the Feed Page
     async getOffers(filters?: { location?: string; maxPrice?: number; apartmentType?: string }): Promise<OfferResponse[]> {
@@ -112,5 +136,38 @@ export const apiService = {
 
     async markAllNotificationsAsRead(userId: string) {
         await fetch(`${API_BASE_URL}/notifications/user/${userId}/read-all`, { method: 'PATCH' });
+    },
+
+    // 1. Get all chats for the logged in user
+    async getUserChats(userId: string | number): Promise<ChatResponse[]> {
+        const response = await fetch(`${API_BASE_URL}/chats/user/${userId}`);
+        if (!response.ok) throw new Error('Failed to fetch user chats');
+        return response.json();
+    },
+
+    // 2. Send a message in a chat
+    async sendChatMessage(chatId: string | number, data: { senderId: number; content: string }): Promise<ChatMessageResponse> {
+        const response = await fetch(`${API_BASE_URL}/chats/${chatId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to send message');
+        return response.json();
+    },
+
+    // 3. Mark messages in a chat as read
+    async markChatAsRead(chatId: string | number, userId: string | number): Promise<void> {
+        await fetch(`${API_BASE_URL}/chats/${chatId}/read?userId=${userId}`, {
+            method: 'PATCH',
+        });
+    },
+
+    // 4. Finalize offer to candidate (sets status to OFFERED, deactivates offer, notifies others)
+    async finalizeOffer(applicationId: string | number): Promise<void> {
+        const response = await fetch(`${API_BASE_URL}/applications/${applicationId}/finalize-offer`, {
+            method: 'POST',
+        });
+        if (!response.ok) throw new Error('Failed to finalize offer');
     }
 };

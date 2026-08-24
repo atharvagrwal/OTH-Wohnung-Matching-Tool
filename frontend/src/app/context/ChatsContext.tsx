@@ -1,165 +1,148 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import {createContext, useContext, useState, useEffect, ReactNode, useCallback} from 'react';
+import {apiService, ChatResponse} from '../../services/api';
+import {useAuth} from './AuthContext';
 
 export interface Message {
-  id: string;
-  senderId: string;
-  senderName: string;
-  text: string;
-  timestamp: string;
+    id: string;
+    senderId: string;
+    senderName: string;
+    text: string;
+    timestamp: string;
+    isRead: boolean;
 }
 
 export interface Chat {
-  id: string;
-  applicationId: string;
-  offerId: string;
-  offerName: string;
-  participants: string[];
-  messages: Message[];
-  isActive: boolean;
-  lastMessage?: Message;
+    id: string;
+    applicationId: string;
+    offerId: string;
+    offerName: string;
+    ownerId: string;
+    ownerName: string;
+    applicantId: string;
+    applicantName: string;
+    participants: string[];
+    messages: Message[];
+    unreadCount: number;
 }
 
 interface ChatsContextType {
-  chats: Chat[];
-  createChat: (applicationId: string, offerId: string, offerName: string, participants: string[]) => void;
-  getChatByApplication: (applicationId: string) => Chat | undefined;
-  getUserChats: (userId: string) => Chat[];
-  sendMessage: (chatId: string, senderId: string, senderName: string, text: string) => void;
-  deactivateChat: (chatId: string) => void;
-  getUnreadCount: (userId: string) => number;
+    chats: Chat[];
+    loading: boolean;
+    refreshChats: () => Promise<void>;
+    sendMessage: (chatId: string, senderId: string, text: string) => Promise<void>;
+    markAsRead: (chatId: string) => Promise<void>;
 }
 
 const ChatsContext = createContext<ChatsContextType | undefined>(undefined);
 
-// Demo chat for demonstration purposes
-const demoMessages: Message[] = [
-  {
-    id: 'msg-1',
-    senderId: 'demo-user-2',
-    senderName: 'Tom Weber',
-    text: 'Hi! Thanks for approving my application. When would be a good time to view the room?',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'msg-2',
-    senderId: '1',
-    senderName: 'Max Mustermann',
-    text: 'Hi Tom! Great to hear from you. How about this Saturday at 2 PM?',
-    timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'msg-3',
-    senderId: 'demo-user-2',
-    senderName: 'Tom Weber',
-    text: 'Saturday at 2 PM works perfectly for me! Should I bring anything?',
-    timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'msg-4',
-    senderId: '1',
-    senderName: 'Max Mustermann',
-    text: 'Just yourself! Looking forward to meeting you.',
-    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  },
-];
+export function ChatsProvider({children}: { children: ReactNode }) {
+    const [chats, setChats] = useState<Chat[]>([]);
+    const [loading, setLoading] = useState(false);
+    const {user} = useAuth();
 
-const demoChats: Chat[] = [
-  {
-    id: 'demo-chat-1',
-    applicationId: 'demo-app-2',
-    offerId: '1',
-    offerName: 'Cozy WG Room in City Center',
-    participants: ['1', 'demo-user-2'],
-    messages: demoMessages,
-    isActive: true,
-    lastMessage: demoMessages[demoMessages.length - 1],
-  },
-];
+    const refreshChats = useCallback(async () => {
+        if (!user) {
+            setChats([]);
+            return;
+        }
 
-export function ChatsProvider({ children }: { children: ReactNode }) {
-  const [chats, setChats] = useState<Chat[]>(demoChats);
+        try {
+            setLoading(true);
+            const data: ChatResponse[] = await apiService.getUserChats(user.id);
 
-  const createChat = (applicationId: string, offerId: string, offerName: string, participants: string[]) => {
-    const existingChat = chats.find(chat => chat.applicationId === applicationId);
-    if (existingChat) return;
+            const mappedChats: Chat[] = data.map(c => ({
+                id: c.id,
+                applicationId: c.applicationId,
+                offerId: c.offerId,
+                offerName: c.offerTitle || 'Accommodation',
+                ownerId: c.ownerId,
+                ownerName: c.ownerName,
+                applicantId: c.applicantId,
+                applicantName: c.applicantName,
+                participants: [c.ownerId, c.applicantId],
+                unreadCount: c.unreadCount || 0,
+                messages: (c.messages || []).map(m => ({
+                    id: m.id,
+                    senderId: m.senderId,
+                    senderName: m.senderName,
+                    text: m.content,
+                    timestamp: m.sentAt,
+                    isRead: m.isRead,
+                })),
+            }));
 
-    const newChat: Chat = {
-      id: String(Date.now()),
-      applicationId,
-      offerId,
-      offerName,
-      participants,
-      messages: [],
-      isActive: true,
-    };
-    setChats(prev => [newChat, ...prev]);
-  };
+            setChats(mappedChats);
+        } catch (error) {
+            console.error('Failed to load chats:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
 
-  const getChatByApplication = (applicationId: string) => {
-    return chats.find(chat => chat.applicationId === applicationId);
-  };
+    useEffect(() => {
+        refreshChats();
+    }, [refreshChats]);
 
-  const getUserChats = (userId: string) => {
-    return chats
-      .filter(chat => chat.participants.includes(userId))
-      .sort((a, b) => {
-        const aTime = a.lastMessage?.timestamp || '';
-        const bTime = b.lastMessage?.timestamp || '';
-        return bTime.localeCompare(aTime);
-      });
-  };
+    const sendMessage = async (chatId: string, senderId: string, text: string) => {
+        try {
+            const response = await apiService.sendChatMessage(chatId, {
+                senderId: Number(senderId),
+                content: text,
+            });
 
-  const sendMessage = (chatId: string, senderId: string, senderName: string, text: string) => {
-    const message: Message = {
-      id: String(Date.now()),
-      senderId,
-      senderName,
-      text,
-      timestamp: new Date().toISOString(),
+            const newMessage: Message = {
+                id: response.id,
+                senderId: response.senderId,
+                senderName: response.senderName,
+                text: response.content,
+                timestamp: response.sentAt,
+                isRead: false,
+            };
+
+            setChats(prev =>
+                prev.map(chat =>
+                    chat.id === chatId
+                        ? {...chat, messages: [...chat.messages, newMessage]}
+                        : chat
+                )
+            );
+        } catch (error) {
+            console.error('Failed to send message:', error);
+            throw error;
+        }
     };
 
-    setChats(prev =>
-      prev.map(chat =>
-        chat.id === chatId
-          ? { ...chat, messages: [...chat.messages, message], lastMessage: message }
-          : chat
-      )
+    const markAsRead = async (chatId: string) => {
+        if (!user) return;
+        try {
+            await apiService.markChatAsRead(chatId, user.id);
+            setChats(prev =>
+                prev.map(c => (c.id === chatId ? {...c, unreadCount: 0} : c))
+            );
+        } catch (err) {
+            console.error('Failed to mark chat as read:', err);
+        }
+    };
+
+    return (
+        <ChatsContext.Provider
+            value={{
+                chats,
+                loading,
+                refreshChats,
+                sendMessage,
+                markAsRead,
+            }}
+        >
+            {children}
+        </ChatsContext.Provider>
     );
-  };
-
-  const deactivateChat = (chatId: string) => {
-    setChats(prev =>
-      prev.map(chat =>
-        chat.id === chatId ? { ...chat, isActive: false } : chat
-      )
-    );
-  };
-
-  const getUnreadCount = (userId: string) => {
-    return 0;
-  };
-
-  return (
-    <ChatsContext.Provider
-      value={{
-        chats,
-        createChat,
-        getChatByApplication,
-        getUserChats,
-        sendMessage,
-        deactivateChat,
-        getUnreadCount,
-      }}
-    >
-      {children}
-    </ChatsContext.Provider>
-  );
 }
 
 export function useChats() {
-  const context = useContext(ChatsContext);
-  if (context === undefined) {
-    throw new Error('useChats must be used within a ChatsProvider');
-  }
-  return context;
+    const context = useContext(ChatsContext);
+    if (!context) {
+        throw new Error('useChats must be used within a ChatsProvider');
+    }
+    return context;
 }
