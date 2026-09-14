@@ -2,7 +2,32 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useOffers, StayType, ApartmentType, PermissionStatus, GenderBreakdown, PriceBreakdown, OfferSpecifics } from '../context/OffersContext';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, ArrowRight, Check, Upload, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Upload, X, Plus } from 'lucide-react';
+
+export type HouseRuleValue = PermissionStatus;
+
+//define house rules options
+export const HOUSE_RULE_OPTIONS: { value: HouseRuleValue; label: string; activeColor: string }[] = [
+    { value: 'not-allowed', label: 'Not allowed', activeColor: 'bg-red-50 text-red-700 border-red-300 font-semibold shadow-sm' },
+    { value: 'maybe', label: 'To be discussed', activeColor: 'bg-amber-50 text-amber-800 border-amber-300 font-semibold shadow-sm' },
+    { value: 'allowed', label: 'Allowed', activeColor: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold shadow-sm' },
+];
+
+//predefine the optional specifics for the offer
+export type OptionalOfferSpecifics = {
+    pets?: HouseRuleValue;
+    smoking?: HouseRuleValue;
+    parties?: HouseRuleValue;
+    instruments?: HouseRuleValue;
+    visitors?: HouseRuleValue;
+};
+
+//define the custom house rule interface
+export interface CustomHouseRule {
+    id: string;
+    label: string;
+    value?: HouseRuleValue;
+}
 
 interface OfferFormData {
     stayType: StayType | null;
@@ -14,7 +39,8 @@ interface OfferFormData {
     area: string;
     priceBreakdown: PriceBreakdown;
     genderBreakdown: GenderBreakdown;
-    specifics: OfferSpecifics;
+    specifics: OptionalOfferSpecifics;
+    customHouseRules: CustomHouseRule[];
     description: string;
     images: File[];
 }
@@ -25,6 +51,7 @@ export function CreateOfferPage() {
     const { user } = useAuth();
     const [currentStep, setCurrentStep] = useState(1);
     const [agreedWithLandlord, setAgreedWithLandlord] = useState(false);
+
     const [formData, setFormData] = useState<OfferFormData>({
         stayType: null,
         apartmentType: null,
@@ -36,12 +63,13 @@ export function CreateOfferPage() {
         priceBreakdown: { kaltmiete: 0, nebenkosten: 0, kaution: 0, ablose: 0, sonstiges: 0 },
         genderBreakdown: { males: 0, females: 0, diverse: 0 },
         specifics: {
-            pets: 'not-allowed',
-            smoking: 'not-allowed',
-            parties: 'maybe',
-            instruments: 'maybe',
-            visitors: 'allowed',
+            pets: undefined,
+            smoking: undefined,
+            parties: undefined,
+            instruments: undefined,
+            visitors: undefined,
         },
+        customHouseRules: [],
         description: '',
         images: [],
     });
@@ -98,7 +126,16 @@ export function CreateOfferPage() {
         const finalGenderBreakdown = isSharedWG ? formData.genderBreakdown : { males: 0, females: 0, diverse: 0 };
 
         try {
-            const { images, ...textMetadata } = formData;
+            const { images, customHouseRules, ...textMetadata } = formData;
+
+            //add custom house rules to the description (only frontend)
+            let finalDescription = textMetadata.description;
+            if (customHouseRules.length > 0) {
+                const customRulesSummary = customHouseRules
+                    .map(r => `• ${r.label}: ${r.value ? HOUSE_RULE_OPTIONS.find(o => o.value === r.value)?.label : 'To be discussed'}`)
+                    .join('\n');
+                finalDescription = `${finalDescription}\n\nAdditional House Rules:\n${customRulesSummary}`;
+            }
 
             await addOffer({
                 name: textMetadata.name,
@@ -108,11 +145,11 @@ export function CreateOfferPage() {
                 moveInDate: textMetadata.moveInDate,
                 moveOutDate: textMetadata.stayType === 'zwischenmiete' ? textMetadata.moveOutDate : undefined,
                 area: Number(textMetadata.area) || 0,
-                description: textMetadata.description,
+                description: finalDescription,
                 genderBreakdown: finalGenderBreakdown,
                 priceBreakdown: textMetadata.priceBreakdown,
                 totalPrice,
-                specifics: textMetadata.specifics,
+                specifics: textMetadata.specifics as OfferSpecifics,
                 contactEmail: user?.email || 'dummy@oth-regensburg.de',
                 createdBy: user?.id || '1',
             }, images);
@@ -175,7 +212,9 @@ export function CreateOfferPage() {
                 return (
                     <StepSpecifics
                         specifics={formData.specifics}
+                        customRules={formData.customHouseRules}
                         onChange={(specifics) => setFormData(prev => ({ ...prev, specifics }))}
+                        onCustomRulesChange={(customHouseRules) => setFormData(prev => ({ ...prev, customHouseRules }))}
                     />
                 );
             case 8:
@@ -613,18 +652,62 @@ function StepGenderBreakdown({
     );
 }
 
+//house rules
 function StepSpecifics({
                            specifics,
+                           customRules,
                            onChange,
+                           onCustomRulesChange,
                        }: {
-    specifics: OfferSpecifics;
-    onChange: (value: OfferSpecifics) => void;
+    specifics: OptionalOfferSpecifics;
+    customRules: CustomHouseRule[];
+    onChange: (value: OptionalOfferSpecifics) => void;
+    onCustomRulesChange: (rules: CustomHouseRule[]) => void;
 }) {
-    const updateField = (field: keyof OfferSpecifics, value: PermissionStatus) => {
-        onChange({ ...specifics, [field]: value });
+    //custom rule input state
+    const [newRuleInput, setNewRuleInput] = useState('');
+
+    const toggleField = (field: keyof OptionalOfferSpecifics, clickedValue: HouseRuleValue) => {
+        const nextValue = specifics[field] === clickedValue ? undefined : clickedValue;
+        onChange({ ...specifics, [field]: nextValue });
     };
 
-    const categories: { field: keyof OfferSpecifics; label: string }[] = [
+    const handleAddCustomRule = (e: React.FormEvent) => {
+        e.preventDefault();
+        const trimmed = newRuleInput.trim();
+        if (!trimmed) return;
+
+        const newRule: CustomHouseRule = {
+            id: Date.now().toString(),
+            label: trimmed,
+            value: undefined,
+        };
+
+        onCustomRulesChange([...customRules, newRule]);
+        setNewRuleInput('');
+    };
+
+    const toggleCustomRuleValue = (id: string, clickedValue: HouseRuleValue) => {
+        onCustomRulesChange(
+            customRules.map(rule => {
+                if (rule.id === id) {
+                    return {
+                        ...rule,
+                        value: rule.value === clickedValue ? undefined : clickedValue,
+                    };
+                }
+                return rule;
+            })
+        );
+    };
+
+    //delete custom rule
+    const handleDeleteCustomRule = (id: string) => {
+        onCustomRulesChange(customRules.filter(rule => rule.id !== id));
+    };
+
+    //predefined categories for house rules
+    const categories: { field: keyof OptionalOfferSpecifics; label: string }[] = [
         { field: 'pets', label: 'Pets' },
         { field: 'smoking', label: 'Smoking' },
         { field: 'parties', label: 'Parties' },
@@ -632,40 +715,114 @@ function StepSpecifics({
         { field: 'visitors', label: 'Overnight Visitors' },
     ];
 
-    const options: { value: PermissionStatus; label: string; color: string }[] = [
-        { value: 'allowed', label: 'Allowed', color: 'bg-green-100 text-green-800 border-green-300' },
-        { value: 'maybe', label: 'Maybe', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-        { value: 'not-allowed', label: 'Not Allowed', color: 'bg-red-100 text-red-800 border-red-300' },
-    ];
-
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">House rules & specifics</h2>
-            <p className="text-gray-600 mb-6">Set the rules for your accommodation</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">House rules</h2>
+            <p className="text-gray-600 mb-6">
+                Set rules for your accommodation or add your own custom preferences. Click any option again to deselect it. Optional step
+            </p>
 
             <div className="space-y-6">
-                {categories.map((category) => (
-                    <div key={category.field}>
-                        <label className="block text-sm font-medium text-gray-700 mb-3">
-                            {category.label}
-                        </label>
+                {categories.map((category) => {
+                    const currentValue = specifics[category.field];
+                    return (
+                        <div key={category.field} className="pb-4 border-b border-gray-100 last:border-b-0">
+                            <div className="mb-3">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    {category.label}
+                                </label>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                                {HOUSE_RULE_OPTIONS.map((option) => {
+                                    const isSelected = currentValue === option.value;
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => toggleField(category.field, option.value)}
+                                            className={`px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                                                isSelected
+                                                    ? option.activeColor
+                                                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/60'
+                                            }`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {customRules.map((rule) => (
+                    <div key={rule.id} className="pb-4 border-b border-gray-100">
+                        <div className="flex items-center justify-between mb-3">
+                            <label className="block text-sm font-medium text-gray-800">
+                                {rule.label}
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => handleDeleteCustomRule(rule.id)}
+                                className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                                title="Remove rule"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
                         <div className="grid grid-cols-3 gap-3">
-                            {options.map((option) => (
-                                <button
-                                    key={option.value}
-                                    onClick={() => updateField(category.field, option.value)}
-                                    className={`px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all ${
-                                        specifics[category.field] === option.value
-                                            ? option.color + ' border-current'
-                                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                                    }`}
-                                >
-                                    {option.label}
-                                </button>
-                            ))}
+                            {HOUSE_RULE_OPTIONS.map((option) => {
+                                const isSelected = rule.value === option.value;
+                                return (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        onClick={() => toggleCustomRuleValue(rule.id, option.value)}
+                                        className={`px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                                            isSelected
+                                                ? option.activeColor
+                                                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/60'
+                                        }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 ))}
+
+                <div className="pt-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Add a custom rule
+                    </label>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={newRuleInput}
+                            onChange={(e) => setNewRuleInput(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddCustomRule(e);
+                                }
+                            }}
+                            placeholder="e.g., Quiet hours after 10 PM, Shoes off inside..."
+                            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                        />
+                        <button
+                            type="button"
+                            onClick={handleAddCustomRule}
+                            disabled={!newRuleInput.trim()}
+                            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Plus size={16} />
+                            Add Rule
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -713,7 +870,7 @@ function StepPhotos({ files, onChange }: { files: File[]; onChange: (value: File
     return (
         <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Add photos</h2>
-            <p className="text-gray-600 mb-6">Upload images to showcase your accommodation from your local disk folder device context</p>
+            <p className="text-gray-600 mb-6">Upload images to showcase your accommodation</p>
 
             <div className="space-y-4">
                 <div className="flex items-center justify-center w-full">
@@ -782,6 +939,12 @@ function StepReview({
         if (!type) return '';
         const labels = { zwischenmiete: 'Zwischenmiete', nachmieter: 'Nachmieter', couchsurfing: 'Couchsurfing' };
         return labels[type];
+    };
+
+    const getHouseRuleLabel = (val?: HouseRuleValue) => {
+        if (!val) return 'Not specified';
+        const match = HOUSE_RULE_OPTIONS.find(o => o.value === val);
+        return match ? match.label : 'Not specified';
     };
 
     const isSharedWG = formData.apartmentType === 'WG';
@@ -855,6 +1018,38 @@ function StepReview({
                             <span className="font-medium">Total Monthly:</span>
                             <span className="font-bold text-lg">€{totalPrice}</span>
                         </div>
+                    </div>
+                </div>
+
+                <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-medium text-gray-700 mb-3">House Rules & Specifics</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                        <div>
+                            <span className="text-gray-500 block text-xs">Smoking</span>
+                            <span className="font-medium text-gray-800">{getHouseRuleLabel(formData.specifics.smoking)}</span>
+                        </div>
+                        <div>
+                            <span className="text-gray-500 block text-xs">Pets</span>
+                            <span className="font-medium text-gray-800">{getHouseRuleLabel(formData.specifics.pets)}</span>
+                        </div>
+                        <div>
+                            <span className="text-gray-500 block text-xs">Parties</span>
+                            <span className="font-medium text-gray-800">{getHouseRuleLabel(formData.specifics.parties)}</span>
+                        </div>
+                        <div>
+                            <span className="text-gray-500 block text-xs">Instruments</span>
+                            <span className="font-medium text-gray-800">{getHouseRuleLabel(formData.specifics.instruments)}</span>
+                        </div>
+                        <div>
+                            <span className="text-gray-500 block text-xs">Visitors</span>
+                            <span className="font-medium text-gray-800">{getHouseRuleLabel(formData.specifics.visitors)}</span>
+                        </div>
+                        {formData.customHouseRules.map((cr) => (
+                            <div key={cr.id}>
+                                <span className="text-gray-500 block text-xs">{cr.label}</span>
+                                <span className="font-medium text-gray-800">{getHouseRuleLabel(cr.value)}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
