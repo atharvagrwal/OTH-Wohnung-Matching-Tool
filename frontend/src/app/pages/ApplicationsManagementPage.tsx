@@ -14,7 +14,7 @@ export function ApplicationsManagementPage() {
   const navigate = useNavigate();
   const { getOfferById } = useOffers();
   const { updateApplicationStatus } = useApplications();
-  const { createChat } = useChats();
+  const { refreshChats } = useChats();
 
   const offer = getOfferById(offerId || '');
   const [offerApplications, setOfferApplications] = useState<Application[]>([]);
@@ -55,10 +55,10 @@ export function ApplicationsManagementPage() {
     );
   }
 
-  const handleApprove = async (applicationId: string, applicantId: string, applicantName: string) => {
+  const handleApprove = async (applicationId: string, applicantName: string) => {
     try {
       await updateApplicationStatus(applicationId, 'approved');
-      createChat(applicationId, offer.id, offer.name, [offer.createdBy, applicantId]);
+      await refreshChats();
       toast.success(`${applicantName}'s application approved! Chat created.`);
       await fetchOfferApplications();
     } catch (error) {
@@ -152,17 +152,17 @@ export function ApplicationsManagementPage() {
 
                             <div className="flex gap-3">
                               <button
-                                  onClick={() => handleApprove(app.id, app.applicantId, app.applicantName)}
+                                  onClick={() => handleApprove(app.id, app.applicantName)}
                                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                               >
-                                <Check size={20} />
+                                <Check size={20}/>
                                 Approve & Start Chat
                               </button>
                               <button
-                                  onClick={() => setDeclineTarget({ id: app.id, name: app.applicantName })}
+                                  onClick={() => setDeclineTarget({id: app.id, name: app.applicantName})}
                                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
                               >
-                                <X size={20} />
+                                <X size={20}/>
                                 Decline
                               </button>
                             </div>

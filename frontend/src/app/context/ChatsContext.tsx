@@ -69,7 +69,7 @@ export function ChatsProvider({children}: { children: ReactNode }) {
                     senderName: m.senderName,
                     text: m.content,
                     timestamp: m.sentAt,
-                    isRead: m.isRead,
+                    isRead: Boolean(m.isRead), //handle both isRead and read for backward compatibility
                 })),
             }));
 
@@ -84,6 +84,16 @@ export function ChatsProvider({children}: { children: ReactNode }) {
     useEffect(() => {
         void refreshChats();
     }, [refreshChats]);
+
+    useEffect(() => {
+        if (!user) return;
+
+        const interval = setInterval(() => {
+            void refreshChats();
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [user, refreshChats]);
 
     const sendMessage = async (chatId: string, senderId: string, text: string) => {
         try {

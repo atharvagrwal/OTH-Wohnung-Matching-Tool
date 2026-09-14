@@ -3,7 +3,7 @@ import {useAuth} from '../context/AuthContext';
 import {useChats} from '../context/ChatsContext';
 import {useApplications} from '../context/ApplicationsContext';
 import {apiService} from '../../services/api';
-import {Send, X, Check, Home, Lock} from 'lucide-react';
+import {Send, X, Check, CheckCheck, Home, Lock} from 'lucide-react';
 import {toast} from 'sonner';
 
 export function ChatsPage() {
@@ -178,12 +178,21 @@ export function ChatsPage() {
                                                     }`}
                                                 >
                                                     <p>{message.text}</p>
-                                                    <p className={`text-[10px] mt-1 ${isMe ? 'text-blue-100 text-right' : 'text-gray-400'}`}>
-                                                        {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], {
-                                                            hour: '2-digit',
-                                                            minute: '2-digit'
-                                                        }) : ''}
-                                                    </p>
+                                                    <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'justify-end text-blue-100' : 'text-gray-400'}`}>
+                                                        <span>
+                                                            {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], {
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            }) : ''}
+                                                        </span>
+                                                        {isMe && (
+                                                            message.isRead ? (
+                                                                <CheckCheck size={14} className="text-blue-200 inline" />
+                                                            ) : (
+                                                                <Check size={14} className="text-blue-200/70 inline" />
+                                                            )
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
