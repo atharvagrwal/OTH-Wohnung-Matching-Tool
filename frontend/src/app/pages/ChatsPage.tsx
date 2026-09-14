@@ -6,6 +6,25 @@ import {apiService} from '../../services/api';
 import {Send, X, Check, CheckCheck, Home, Lock} from 'lucide-react';
 import {toast} from 'sonner';
 
+//helper function to format message timestamps
+const formatMessageDate = (timestamp: string) => {
+    const messageDate = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const isToday = messageDate.toDateString() === today.toDateString();
+    const isYesterday = messageDate.toDateString() === yesterday.toDateString();
+
+    if (isToday) return 'Today';
+    if (isYesterday) return 'Yesterday';
+    return messageDate.toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: 'short',
+        year: messageDate.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+    });
+};
+
 export function ChatsPage() {
     const {user} = useAuth();
     const {chats, sendMessage, markAsRead, refreshChats} = useChats();
@@ -129,7 +148,7 @@ export function ChatsPage() {
                                     <span className="text-xs text-gray-500 truncate">{chat.offerName}</span>
                                     {chatIsClosed && (
                                         <span className="inline-flex items-center gap-1 mt-1 text-[11px] text-red-600 font-medium">
-                                            <Lock size={12} /> Chat Closed
+                                            <Lock size={12}/> Chat Closed
                                         </span>
                                     )}
 
@@ -154,7 +173,7 @@ export function ChatsPage() {
                                 </div>
                                 {isClosed && (
                                     <span className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 text-xs rounded-full font-medium flex items-center gap-1">
-                                        <Lock size={12} /> Chat Closed
+                                        <Lock size={12}/> Chat Closed
                                     </span>
                                 )}
                             </div>
@@ -163,35 +182,47 @@ export function ChatsPage() {
                                 {selectedChat.messages.length === 0 ? (
                                     <p className="text-center text-gray-400 py-8">No messages yet</p>
                                 ) : (
-                                    selectedChat.messages.map(message => {
+                                    selectedChat.messages.map((message, index) => {
                                         const isMe = message.senderId === user?.id;
+                                        const currentDate = new Date(message.timestamp).toDateString();
+                                        const previousMessage = selectedChat.messages[index - 1];
+                                        const previousDate = previousMessage ? new Date(previousMessage.timestamp).toDateString() : null;
+                                        const showDateDivider = currentDate !== previousDate;
+
                                         return (
-                                            <div
-                                                key={message.id}
-                                                className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                                            >
-                                                <div
-                                                    className={`max-w-md px-4 py-2.5 rounded-2xl text-sm shadow-sm ${
-                                                        isMe
-                                                            ? 'bg-blue-600 text-white rounded-br-none'
-                                                            : 'bg-white border text-gray-800 rounded-bl-none'
-                                                    }`}
-                                                >
-                                                    <p>{message.text}</p>
-                                                    <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'justify-end text-blue-100' : 'text-gray-400'}`}>
-                                                        <span>
-                                                            {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], {
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            }) : ''}
+                                            <div key={message.id}>
+                                                {showDateDivider && (
+                                                    <div className="flex justify-center my-4">
+                                                        <span className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full shadow-sm font-medium">
+                                                            {formatMessageDate(message.timestamp)}
                                                         </span>
-                                                        {isMe && (
-                                                            message.isRead ? (
-                                                                <CheckCheck size={14} className="text-blue-200 inline" />
-                                                            ) : (
-                                                                <Check size={14} className="text-blue-200/70 inline" />
-                                                            )
-                                                        )}
+                                                    </div>
+                                                )}
+
+                                                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                    <div
+                                                        className={`max-w-md px-4 py-2.5 rounded-2xl text-sm shadow-sm ${
+                                                            isMe
+                                                                ? 'bg-blue-600 text-white rounded-br-none'
+                                                                : 'bg-white border text-gray-800 rounded-bl-none'
+                                                        }`}
+                                                    >
+                                                        <p>{message.text}</p>
+                                                        <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'justify-end text-blue-100' : 'text-gray-400'}`}>
+                                                            <span>
+                                                                {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], {
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit'
+                                                                }) : ''}
+                                                            </span>
+                                                            {isMe && (
+                                                                message.isRead ? (
+                                                                    <CheckCheck size={14} className="text-blue-200 inline"/>
+                                                                ) : (
+                                                                    <Check size={14} className="text-blue-200/70 inline"/>
+                                                                )
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
