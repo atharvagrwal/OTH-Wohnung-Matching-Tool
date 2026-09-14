@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useLayoutEffect, useRef} from 'react';
 import {useAuth} from '../context/AuthContext';
 import {useChats} from '../context/ChatsContext';
 import {useApplications} from '../context/ApplicationsContext';
@@ -35,6 +35,11 @@ export function ChatsPage() {
     const [showDeclineModal, setShowDeclineModal] = useState(false);
     const [showOfferModal, setShowOfferModal] = useState(false);
 
+    const chatContainerRef = useRef<HTMLDivElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const firstUnreadRef = useRef<HTMLDivElement>(null);
+    const hasScrolledForChatRef = useRef<string | null>(null);
+
     //auto select first chat if available
     useEffect(() => {
         if (chats.length > 0 && !selectedChatId) {
@@ -44,6 +49,31 @@ export function ChatsPage() {
 
     const selectedChat = chats.find(c => c.id === selectedChatId);
     const isClosed = selectedChat?.applicationStatus === 'DECLINED';
+
+    const firstUnreadMessageId = selectedChat?.messages.find(
+        m => !m.isRead && m.senderId !== user?.id
+    )?.id;
+
+    //scroll to first unread message or bottom of chat when selected chat changes
+    useLayoutEffect(() => {
+        if (!selectedChatId || !selectedChat || selectedChat.messages.length === 0) return;
+
+        //run once per conversation switch
+        if (hasScrolledForChatRef.current !== selectedChatId) {
+            const container = chatContainerRef.current;
+            if (!container) return;
+
+            if (firstUnreadRef.current) {
+                //jump to first unread message if it exists
+                firstUnreadRef.current.scrollIntoView({ behavior: 'instant', block: 'start' });
+            } else {
+                //otherwise scroll to bottom of chat
+                container.scrollTop = container.scrollHeight;
+            }
+
+            hasScrolledForChatRef.current = selectedChatId;
+        }
+    }, [selectedChatId, selectedChat?.messages.length, firstUnreadMessageId]);
 
     //mark as read when selected chat changes
     useEffect(() => {
@@ -59,6 +89,10 @@ export function ChatsPage() {
         try {
             await sendMessage(selectedChat.id, user.id, messageInput.trim());
             setMessageInput('');
+            //scroll to bottom after sending a message
+            setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({behavior: 'smooth'});
+            }, 50);
         } catch {
             toast.error('Failed to send message.');
         }
@@ -147,7 +181,8 @@ export function ChatsPage() {
                                     </div>
                                     <span className="text-xs text-gray-500 truncate">{chat.offerName}</span>
                                     {chatIsClosed && (
-                                        <span className="inline-flex items-center gap-1 mt-1 text-[11px] text-red-600 font-medium">
+                                        <span
+                                            className="inline-flex items-center gap-1 mt-1 text-[11px] text-red-600 font-medium">
                                             <Lock size={12}/> Chat Closed
                                         </span>
                                     )}
@@ -172,13 +207,17 @@ export function ChatsPage() {
                                     <p className="text-xs text-gray-500">{selectedChat.offerName}</p>
                                 </div>
                                 {isClosed && (
-                                    <span className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 text-xs rounded-full font-medium flex items-center gap-1">
+                                    <span
+                                        className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 text-xs rounded-full font-medium flex items-center gap-1">
                                         <Lock size={12}/> Chat Closed
                                     </span>
                                 )}
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/30">
+                            <div
+                                ref={chatContainerRef}
+                                className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/30"
+                            >
                                 {selectedChat.messages.length === 0 ? (
                                     <p className="text-center text-gray-400 py-8">No messages yet</p>
                                 ) : (
@@ -188,14 +227,27 @@ export function ChatsPage() {
                                         const previousMessage = selectedChat.messages[index - 1];
                                         const previousDate = previousMessage ? new Date(previousMessage.timestamp).toDateString() : null;
                                         const showDateDivider = currentDate !== previousDate;
+                                        const isFirstUnread = message.id === firstUnreadMessageId;
 
                                         return (
                                             <div key={message.id}>
                                                 {showDateDivider && (
                                                     <div className="flex justify-center my-4">
-                                                        <span className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full shadow-sm font-medium">
+                                                        <span
+                                                            className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full shadow-sm font-medium">
                                                             {formatMessageDate(message.timestamp)}
                                                         </span>
+                                                    </div>
+                                                )}
+
+                                                {isFirstUnread && (
+                                                    <div ref={firstUnreadRef} className="flex items-center my-4 gap-3">
+                                                        <div className="flex-1 h-px bg-blue-300"></div>
+                                                        <span
+                                                            className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full font-semibold shadow-sm">
+                                                            Unread messages
+                                                        </span>
+                                                        <div className="flex-1 h-px bg-blue-300"></div>
                                                     </div>
                                                 )}
 
@@ -208,7 +260,8 @@ export function ChatsPage() {
                                                         }`}
                                                     >
                                                         <p>{message.text}</p>
-                                                        <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'justify-end text-blue-100' : 'text-gray-400'}`}>
+                                                        <div
+                                                            className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'justify-end text-blue-100' : 'text-gray-400'}`}>
                                                             <span>
                                                                 {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], {
                                                                     hour: '2-digit',
@@ -217,9 +270,11 @@ export function ChatsPage() {
                                                             </span>
                                                             {isMe && (
                                                                 message.isRead ? (
-                                                                    <CheckCheck size={14} className="text-blue-200 inline"/>
+                                                                    <CheckCheck size={14}
+                                                                                className="text-blue-200 inline"/>
                                                                 ) : (
-                                                                    <Check size={14} className="text-blue-200/70 inline"/>
+                                                                    <Check size={14}
+                                                                           className="text-blue-200/70 inline"/>
                                                                 )
                                                             )}
                                                         </div>
@@ -229,7 +284,9 @@ export function ChatsPage() {
                                         );
                                     })
                                 )}
+                                <div ref={messagesEndRef}/>
                             </div>
+
 
                             {!isClosed ? (
                                 <>
@@ -317,7 +374,8 @@ export function ChatsPage() {
                     <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
                         <h2 className="text-xl font-bold text-gray-900 mb-2">Decline Application</h2>
                         <p className="text-sm text-gray-600 mb-6">
-                            Are you sure you want to decline <strong>{selectedChat?.applicantName}</strong>'s application?
+                            Are you sure you want to decline <strong>{selectedChat?.applicantName}</strong>'s
+                            application?
                             This conversation will be closed.
                         </p>
                         <div className="flex gap-3">
