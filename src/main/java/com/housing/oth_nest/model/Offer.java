@@ -17,11 +17,14 @@ public class Offer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     private Apartment apartment;
 
     @ManyToOne
     private User owner;
+
+    @Enumerated(EnumType.STRING)
+    private StayType stayType;
 
     private LocalDate availableFrom;
 

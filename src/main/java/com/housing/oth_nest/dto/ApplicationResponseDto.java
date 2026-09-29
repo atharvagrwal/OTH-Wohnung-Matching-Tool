@@ -1,24 +1,23 @@
 package com.housing.oth_nest.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-
-import java.time.LocalDateTime;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
-@Schema(description = "Application to a housing offer")
 public class ApplicationResponseDto {
-
-    private Long id;
-    private String message;
-    private LocalDateTime appliedAt;
-
-    private Long offerId;
+    private String id;
+    private String offerId;
     private String offerTitle;
-
-    private Long applicantId;
+    private String applicantId;
     private String applicantName;
     private String applicantEmail;
+    private String message;
+    private String status;
+    private String declineMessage;
+    private String createdAt;
 }

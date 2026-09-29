@@ -19,19 +19,36 @@ public class Apartment {
 
     private String title;
 
+    @Column(length = 1000)
     private String description;
 
-    private Double price;
+    private Double price; //Warmmiete
+    private Double deposit; //Kaution
+    private String location; //Full Address
 
-    private Double deposit;
-
-    private String location;
+    private Double area;
+    private Double kaltmiete;
+    private Double nebenkosten;
+    private Double ablose;
+    private Double sonstiges;
 
     @Enumerated(EnumType.STRING)
     private ApartmentType apartmentType;
 
     private Integer totalOccupants;
+    private Integer malesCount = 0;
+    private Integer femalesCount = 0;
+    private Integer diverseCount = 0;
+
+    // Rule Specifics stored natively as string flags ("allowed", "not-allowed", "maybe")
+    private String petsPermission = "maybe";
+    private String smokingPermission = "not-allowed";
+    private String partiesPermission = "maybe";
+    private String instrumentsPermission = "maybe";
+    private String visitorsPermission = "allowed";
 
     @ElementCollection
+    @CollectionTable(name = "apartment_photo_urls", joinColumns = @JoinColumn(name = "apartment_id"))
+    @Column(name = "photo_url")
     private List<String> photoUrls;
 }

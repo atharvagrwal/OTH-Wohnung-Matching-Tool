@@ -8,13 +8,16 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/offers")
 @Tag(name = "offer-controller", description = "Browse, search, and manage housing listings")
+@CrossOrigin(origins = "http://localhost:5173")
 public class OfferController {
 
     private final OfferService offerService;
@@ -49,10 +52,14 @@ public class OfferController {
         return offerService.getOffersByOwner(ownerId);
     }
 
-    @PostMapping
-    @Operation(summary = "Post a new listing (apartment + offer)")
-    public OfferResponseDto createOffer(@Valid @RequestBody OfferRequestDto request) {
-        return offerService.createOffer(request);
+    @PostMapping(consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    @Operation(summary = "Post a new listing with real image file uploads")
+    public OfferResponseDto createOffer(
+            @RequestPart("offer") @Valid OfferRequestDto request,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+
+        // Pass the files into your service layer to be saved
+        return offerService.createOffer(request, files);
     }
 
     @PatchMapping("/{id}/deactivate")
