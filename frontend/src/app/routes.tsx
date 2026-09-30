@@ -39,6 +39,10 @@ export const router = createBrowserRouter([
     Component: LoginPage,
   },
   {
+    path: '/sso-callback',
+    Component: React.lazy(() => import('./pages/SsoCallbackPage').then(module => ({ default: module.SsoCallbackPage }))),
+  },
+  {
     path: '*',
     element: <Navigate to="/" replace />,
   },

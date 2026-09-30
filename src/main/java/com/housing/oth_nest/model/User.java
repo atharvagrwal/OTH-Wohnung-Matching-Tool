@@ -40,9 +40,9 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @NotBlank
-    @Column(nullable = false)
+    @Column
     @JsonIgnore
+    // null for Shibboleth-provisioned accounts, which authenticate via SAML instead
     private String password;
 
     private String phoneNumber;
@@ -56,6 +56,15 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AuthProvider authProvider = AuthProvider.LOCAL;
+
+    // Shibboleth uid/eduPersonPrincipalName; null for locally-registered accounts
+    @Column(unique = true)
+    private String externalId;
 
     private boolean verified = false;
 

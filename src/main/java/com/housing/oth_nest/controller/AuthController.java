@@ -3,6 +3,7 @@ package com.housing.oth_nest.controller;
 import com.housing.oth_nest.dto.AuthResponse;
 import com.housing.oth_nest.dto.LoginRequest;
 import com.housing.oth_nest.dto.RegisterRequest;
+import com.housing.oth_nest.dto.SsoExchangeRequest;
 import com.housing.oth_nest.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,5 +34,11 @@ public class AuthController {
     @Operation(summary = "Login with email and password")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/sso/exchange")
+    @Operation(summary = "Trade a one-time Shibboleth SSO code (from the /saml2 redirect) for an AuthResponse")
+    public AuthResponse exchangeSsoCode(@Valid @RequestBody SsoExchangeRequest request) {
+        return authService.exchangeSsoCode(request.getCode());
     }
 }

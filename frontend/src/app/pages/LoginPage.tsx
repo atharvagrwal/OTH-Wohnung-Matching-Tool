@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { API_BASE_URL } from '../../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export function LoginPage() {
@@ -85,13 +86,22 @@ export function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <p className="text-center text-sm text-gray-700 mb-2">
-              <span className="font-medium">Demo Mode Credentials</span>
-            </p>
-            <div className="text-xs text-gray-600 space-y-1 font-mono text-center">
-              <p>1. max.mustermann@stud.oth-regensburg.de / password123</p>
-              <p>2. anna.schmidt@stud.oth-regensburg.de / secure456</p>
+          <div className="mt-6 space-y-4">
+            <a
+                href={`${API_BASE_URL}/saml2/authenticate/shibboleth-sp`}
+                className="block w-full text-center border border-blue-600 text-blue-600 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium"
+            >
+              Login with OTH Single Sign-On
+            </a>
+
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <p className="text-center text-sm text-gray-700 mb-2">
+                <span className="font-medium">Demo Mode Credentials</span>
+              </p>
+              <div className="text-xs text-gray-600 space-y-1 font-mono text-center">
+                <p>1. max.mustermann@stud.oth-regensburg.de / password123</p>
+                <p>2. anna.schmidt@stud.oth-regensburg.de / secure456</p>
+              </div>
             </div>
           </div>
         </div>

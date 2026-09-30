@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
+import { apiService } from '../../services/api';
 
 export interface User {
   id: string;
@@ -12,6 +13,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
+  completeSsoLogin: (code: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -25,10 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Mock login - simulates SSO from university portal
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    // Normalize inputs to prevent whitespace or case-sensitivity mismatch bugs
     const trimmedEmail = email.trim().toLowerCase();
 
-    // Condition validation matching your clean data.sql values
     if (trimmedEmail === 'max.mustermann@stud.oth-regensburg.de' && password === 'password123') {
       setUser({
         id: '1',
@@ -48,9 +48,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: 'student',
       });
     } else {
-      // This error instance gets handled directly inside the catch block of your LoginPage.tsx
       throw new Error('Invalid OTH Portal credentials. Please check your email or password.');
     }
+  };
+
+  const completeSsoLogin = async (code: string) => {
+    const response = await apiService.exchangeSsoCode(code);
+    setUser({
+      id: String(response.userId),
+      email: response.email,
+      name: response.name,
+      gender: 'diverse',
+      dateOfBirth: '',
+      role: response.role === 'STUDENT' ? 'student' : 'worker',
+    });
   };
 
   const logout = () => {
@@ -62,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           value={{
             user,
             login,
+            completeSsoLogin,
             logout,
             isAuthenticated: !!user,
           }}

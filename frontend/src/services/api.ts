@@ -1,4 +1,12 @@
-const API_BASE_URL = 'http://localhost:8080'; // Change to your Spring Boot port
+export const API_BASE_URL = 'http://localhost:8080'; // Change to your Spring Boot port
+
+export interface AuthResponse {
+    userId: number;
+    name: string;
+    email: string;
+    role: 'STUDENT' | 'EMPLOYEE' | 'ADMIN';
+    message: string;
+}
 
 export interface OfferResponse {
     id: number;
@@ -123,6 +131,16 @@ export const apiService = {
     async hasUserApplied(offerId: string, userId: string): Promise<boolean> {
         const response = await fetch(`${API_BASE_URL}/applications/has-applied?offerId=${offerId}&userId=${userId}`);
         if (!response.ok) return false;
+        return response.json();
+    },
+
+    async exchangeSsoCode(code: string): Promise<AuthResponse> {
+        const response = await fetch(`${API_BASE_URL}/auth/sso/exchange`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code }),
+        });
+        if (!response.ok) throw new Error('SSO login failed or expired. Please try again.');
         return response.json();
     },
 
