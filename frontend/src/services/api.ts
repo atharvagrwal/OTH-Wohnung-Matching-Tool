@@ -16,9 +16,9 @@ export interface OfferResponse {
     owner: {
         id: number;
     };
+    status: 'ACTIVE' | 'MANUALLY_DISABLED' | 'FILLED' | 'EXPIRED';
     availableFrom: string;
     availableUntil: string;
-    active: boolean;
     createdAt: string;
 }
 
@@ -42,6 +42,7 @@ export interface ChatResponse {
     ownerName: string;
     applicantId: string;
     applicantName: string;
+    originalApplicationMessage?: string;
     messages: ChatMessageResponse[];
     unreadCount: number;
     createdAt: string;
@@ -97,11 +98,11 @@ export const apiService = {
         return response.json();
     },
 
-    async updateApplicationStatus(id: string, status: string, declineMessage?: string) {
+    async updateApplicationStatus(id: string, status: string) {
         const response = await fetch(`${API_BASE_URL}/applications/${id}/status`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: status.toUpperCase(), declineMessage }),
+            body: JSON.stringify({ status: status.toUpperCase() }),
         });
         if (!response.ok) throw new Error('Failed to update application status');
         return response.json();
@@ -170,5 +171,16 @@ export const apiService = {
             method: 'POST',
         });
         if (!response.ok) throw new Error('Failed to finalize offer');
+    },
+
+    // 5. Report a user for suspicious behavior
+    async reportUser(reporterId: number | string, reportedUserId: number | string, description: string): Promise<any> {
+        const response = await fetch(`${API_BASE_URL}/report-user`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reporterId, reportedUserId, description }),
+        });
+        if (!response.ok) throw new Error('Failed to send report');
+        return response.json();
     }
 };

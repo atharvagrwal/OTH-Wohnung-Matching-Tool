@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -66,5 +67,13 @@ public class OfferController {
     @Operation(summary = "Deactivate a listing (remove from search)")
     public OfferResponseDto deactivateOffer(@PathVariable Long id) {
         return offerService.deactivateOffer(id);
+    }
+
+    @PatchMapping("/{id}/move-in-date")
+    @Operation(summary = "Update move-in date for a listing (narrow exception to no-edit rule)")
+    public OfferResponseDto updateMoveInDate(
+            @PathVariable Long id,
+            @RequestParam LocalDate newDate) {
+        return offerService.updateMoveInDate(id, newDate);
     }
 }

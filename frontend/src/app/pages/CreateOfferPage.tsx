@@ -36,6 +36,7 @@ interface OfferFormData {
     address: string;
     moveInDate: string;
     moveOutDate: string;
+    befristet: boolean;
     area: string;
     priceBreakdown: PriceBreakdown;
     genderBreakdown: GenderBreakdown;
@@ -59,6 +60,7 @@ export function CreateOfferPage() {
         address: '',
         moveInDate: '',
         moveOutDate: '',
+        befristet: false,
         area: '',
         priceBreakdown: { kaltmiete: 0, nebenkosten: 0, kaution: 0, ablose: 0, sonstiges: 0 },
         genderBreakdown: { males: 0, females: 0, diverse: 0 },
@@ -189,6 +191,7 @@ export function CreateOfferPage() {
                         address={formData.address}
                         moveInDate={formData.moveInDate}
                         moveOutDate={formData.moveOutDate}
+                        befristet={formData.befristet}
                         stayType={formData.stayType}
                         area={formData.area}
                         onChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
@@ -399,6 +402,7 @@ function StepLocation({
                           address,
                           moveInDate,
                           moveOutDate,
+                          befristet,
                           stayType,
                           area,
                           onChange,
@@ -406,9 +410,10 @@ function StepLocation({
     address: string;
     moveInDate: string;
     moveOutDate: string;
+    befristet: boolean;
     stayType: StayType | null;
     area: string;
-    onChange: (field: string, value: string) => void;
+    onChange: (field: string, value: string | boolean) => void;
 }) {
     return (
         <div>
@@ -457,6 +462,22 @@ function StepLocation({
                         </div>
                     )}
                 </div>
+
+                {(stayType === 'zwischenmiete' || stayType === 'couchsurfing') && (
+                    <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <input
+                            type="checkbox"
+                            id="befristet"
+                            checked={befristet}
+                            onChange={(e) => onChange('befristet', e.target.checked)}
+                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <label htmlFor="befristet" className="cursor-pointer flex-1">
+                            <p className="font-medium text-gray-900">Befristet (Limited-time offer)</p>
+                            <p className="text-sm text-gray-600">This stay has a specific end date and won't automatically renew</p>
+                        </label>
+                    </div>
+                )}
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">

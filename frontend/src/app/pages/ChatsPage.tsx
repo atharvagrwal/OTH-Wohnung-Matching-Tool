@@ -1,9 +1,11 @@
 import {useState, useEffect, useLayoutEffect, useRef} from 'react';
+import {Link} from 'react-router';
 import {useAuth} from '../context/AuthContext';
 import {useChats} from '../context/ChatsContext';
 import {useApplications} from '../context/ApplicationsContext';
+import {ReportUserModal} from '../components/ReportUserModal';
 import {apiService} from '../../services/api';
-import {Send, X, Check, CheckCheck, Home, Lock} from 'lucide-react';
+import {Send, X, Check, CheckCheck, Home, Lock, Flag} from 'lucide-react';
 import {toast} from 'sonner';
 
 //helper function to format message timestamps
@@ -34,21 +36,15 @@ export function ChatsPage() {
     const [messageInput, setMessageInput] = useState('');
     const [showDeclineModal, setShowDeclineModal] = useState(false);
     const [showOfferModal, setShowOfferModal] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
 
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const firstUnreadRef = useRef<HTMLDivElement>(null);
     const hasScrolledForChatRef = useRef<string | null>(null);
 
-    //auto select first chat if available
-    useEffect(() => {
-        if (chats.length > 0 && !selectedChatId) {
-            setSelectedChatId(chats[0].id);
-        }
-    }, [chats, selectedChatId]);
-
     const selectedChat = chats.find(c => c.id === selectedChatId);
-    const isClosed = selectedChat?.applicationStatus === 'DECLINED';
+    const isClosed = selectedChat?.applicationStatus === 'DECLINED' || selectedChat?.applicationStatus === 'CLOSED_OFFER_FILLED';
 
     const firstUnreadMessageId = selectedChat?.messages.find(
         m => !m.isRead && m.senderId !== user?.id
@@ -161,7 +157,7 @@ export function ChatsPage() {
                         {chats.map(chat => {
                             const partner = chat.ownerId === user?.id ? chat.applicantName : chat.ownerName;
                             const lastMsg = chat.messages[chat.messages.length - 1];
-                            const chatIsClosed = chat.applicationStatus === 'DECLINED';
+                            const chatIsClosed = chat.applicationStatus === 'DECLINED' || chat.applicationStatus === 'CLOSED_OFFER_FILLED';
 
                             return (
                                 <button
@@ -204,20 +200,40 @@ export function ChatsPage() {
                             <div className="p-4 border-b flex justify-between items-center bg-white">
                                 <div>
                                     <h2 className="font-semibold text-gray-900">{chatPartnerName}</h2>
-                                    <p className="text-xs text-gray-500">{selectedChat.offerName}</p>
+                                    <Link to={`/offer/${selectedChat.offerId}`} className="text-xs text-blue-600 hover:text-blue-800 hover:underline">
+                                        {selectedChat.offerName}
+                                    </Link>
                                 </div>
-                                {isClosed && (
-                                    <span
-                                        className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 text-xs rounded-full font-medium flex items-center gap-1">
-                                        <Lock size={12}/> Chat Closed
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {isClosed && (
+                                        <span
+                                            className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 text-xs rounded-full font-medium flex items-center gap-1">
+                                            <Lock size={12}/> Chat Closed
+                                        </span>
+                                    )}
+                                    <button
+                                        onClick={() => setShowReportModal(true)}
+                                        className="px-3 py-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
+                                        title="Report user"
+                                    >
+                                        <Flag size={16} />
+                                    </button>
+                                </div>
                             </div>
 
                             <div
                                 ref={chatContainerRef}
                                 className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/30"
                             >
+                                {selectedChat.originalApplicationMessage && (
+                                    <div className="flex justify-start mb-6">
+                                        <div className="max-w-md px-4 py-3 rounded-lg bg-gray-200 text-gray-700 text-sm border-l-4 border-gray-400">
+                                            <p className="text-xs font-semibold text-gray-600 mb-1">Original application message</p>
+                                            <p>{selectedChat.originalApplicationMessage}</p>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {selectedChat.messages.length === 0 ? (
                                     <p className="text-center text-gray-400 py-8">No messages yet</p>
                                 ) : (
@@ -394,6 +410,16 @@ export function ChatsPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {selectedChat && (
+                <ReportUserModal
+                    isOpen={showReportModal}
+                    onClose={() => setShowReportModal(false)}
+                    reportedUserId={isOwner ? selectedChat.applicantId : selectedChat.ownerId}
+                    reportedUserName={chatPartnerName || 'User'}
+                    reporterId={user?.id || 0}
+                />
             )}
         </div>
     );

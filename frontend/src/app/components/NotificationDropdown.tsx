@@ -49,7 +49,11 @@ export function NotificationDropdown() {
         return '/chats';
       case 'decline':
       case 'final-decline':
+      case 'closed_offer_filled':
         return '/my-applications';
+      case 'reminder':
+      case 'reminder_acknowledged':
+        return '/my-offers';
       default:
         return '/';
     }
@@ -64,8 +68,13 @@ export function NotificationDropdown() {
       case 'decline':
       case 'final-decline':
         return '❌';
+      case 'closed_offer_filled':
+        return '🏠';
       case 'offer':
         return '🎉';
+      case 'reminder':
+      case 'reminder_acknowledged':
+        return '⏰';
       default:
         return '🔔';
     }

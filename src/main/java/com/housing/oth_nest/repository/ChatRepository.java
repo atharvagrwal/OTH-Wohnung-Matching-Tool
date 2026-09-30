@@ -13,4 +13,5 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
     List<Chat> findByOwner_IdOrApplicant_IdOrderByCreatedAtDesc(Long ownerId, Long applicantId);
     Optional<Chat> findByApplication_Id(Long applicationId);
     boolean existsByApplication_Id(Long applicationId);
+    boolean existsByOwner_IdAndApplicant_Id(Long ownerId, Long applicantId);
 }

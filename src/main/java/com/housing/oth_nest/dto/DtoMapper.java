@@ -57,7 +57,7 @@ public final class DtoMapper {
 
         OfferResponseDto.OfferResponseDtoBuilder builder = OfferResponseDto.builder()
                 .id(offer.getId())
-                .active(offer.isActive())
+                .status(offer.getStatus())
                 .stayType(offer.getStayType())
                 .availableFrom(offer.getAvailableFrom())
                 .availableUntil(offer.getAvailableUntil())
@@ -166,6 +166,7 @@ public final class DtoMapper {
                 .ownerName(chat.getOwner() != null ? chat.getOwner().getName() : null)
                 .applicantId(chat.getApplicant() != null ? String.valueOf(chat.getApplicant().getId()) : null)
                 .applicantName(chat.getApplicant() != null ? chat.getApplicant().getName() : null)
+                .originalApplicationMessage(chat.getOriginalApplicationMessage())
                 .messages(messages != null ? messages.stream().map(DtoMapper::toChatMessageResponse).toList() : List.of())
                 .unreadCount(unreadCount)
                 .createdAt(chat.getCreatedAt() != null ? chat.getCreatedAt().toString() : null)

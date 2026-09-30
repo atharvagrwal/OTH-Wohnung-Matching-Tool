@@ -1,8 +1,9 @@
 import {Outlet, Link, useNavigate} from 'react-router';
 import {useAuth} from '../context/AuthContext';
 import {useChats} from '../context/ChatsContext';
-import {Home, PlusCircle, User, LogOut, MessageCircle, FileText} from 'lucide-react';
+import {Home, PlusCircle, User, LogOut, MessageCircle, FileText, Users} from 'lucide-react';
 import {NotificationDropdown} from './NotificationDropdown';
+import {Footer} from './Footer';
 
 export function Layout() {
     const {user, logout, isAuthenticated} = useAuth();
@@ -59,6 +60,13 @@ export function Layout() {
                                 <span>My Applications</span>
                             </Link>
                             <Link
+                                to="/review-applicants"
+                                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                            >
+                                <Users size={20}/>
+                                <span>Review Applicants</span>
+                            </Link>
+                            <Link
                                 to="/chats"
                                 className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
                             >
@@ -97,6 +105,8 @@ export function Layout() {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Outlet/>
             </main>
+
+            <Footer/>
         </div>
     );
 }

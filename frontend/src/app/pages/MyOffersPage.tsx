@@ -28,6 +28,21 @@ export function MyOffersPage() {
     return colors[type as keyof typeof colors] || 'bg-gray-50 text-gray-700';
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return null; // No badge for active
+      case 'MANUALLY_DISABLED':
+        return { label: 'Disabled', color: 'bg-gray-100 text-gray-700' };
+      case 'FILLED':
+        return { label: 'Filled', color: 'bg-green-100 text-green-700' };
+      case 'EXPIRED':
+        return { label: 'Expired', color: 'bg-yellow-100 text-yellow-700' };
+      default:
+        return null;
+    }
+  };
+
   if (myOffers.length === 0) {
     return (
       <div className="max-w-3xl mx-auto">
@@ -87,9 +102,9 @@ export function MyOffersPage() {
                   <span className={`text-xs px-3 py-1 rounded-full font-medium ${getStayTypeBadgeColor(offer.stayType)}`}>
                     {getStayTypeLabel(offer.stayType)}
                   </span>
-                  {!offer.isActive && (
-                    <span className="text-xs px-3 py-1 rounded-full font-medium bg-gray-900 text-white">
-                      Inactive
+                  {getStatusBadge(offer.status) && (
+                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusBadge(offer.status)?.color}`}>
+                      {getStatusBadge(offer.status)?.label}
                     </span>
                   )}
                 </div>

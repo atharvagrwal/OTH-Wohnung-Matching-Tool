@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { apiService } from '../../services/api';
 import { useAuth } from './AuthContext';
 
-export type ApplicationStatus = 'pending' | 'approved' | 'declined' | 'offered';
+export type ApplicationStatus = 'pending' | 'approved' | 'declined' | 'offered' | 'closed_offer_filled';
 
 export interface Application {
   id: string;
@@ -19,7 +19,7 @@ export interface Application {
 interface ApplicationsContextType {
   applications: Application[];
   addApplication: (application: { offerId: string; applicantId: string; message: string }) => Promise<void>;
-  updateApplicationStatus: (id: string, status: ApplicationStatus, declineMessage?: string) => Promise<void>;
+  updateApplicationStatus: (id: string, status: ApplicationStatus) => Promise<void>;
   getApplicationsByOffer: (offerId: string) => Application[];
   getApplicationsByApplicant: (applicantId: string) => Application[];
   hasUserApplied: (offerId: string, userId: string) => boolean;
@@ -59,8 +59,8 @@ export function ApplicationsProvider({ children }: { children: ReactNode }) {
     await refreshApplications();
   };
 
-  const updateApplicationStatus = async (id: string, status: ApplicationStatus, declineMessage?: string) => {
-    await apiService.updateApplicationStatus(id, status, declineMessage);
+  const updateApplicationStatus = async (id: string, status: ApplicationStatus) => {
+    await apiService.updateApplicationStatus(id, status);
     await refreshApplications();
   };
 

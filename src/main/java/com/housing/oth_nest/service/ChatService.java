@@ -47,6 +47,7 @@ public class ChatService {
                     .offer(application.getOffer())
                     .owner(application.getOffer().getOwner())
                     .applicant(application.getApplicant())
+                    .originalApplicationMessage(application.getMessage())
                     .build();
 
             return chatRepository.save(chat);
@@ -70,8 +71,9 @@ public class ChatService {
         Chat chat = chatRepository.findById(chatId)
                 .orElseThrow(() -> new ResourceNotFoundException("Chat not found: " + chatId));
 
-        //block new messages if application is declined
-        if (chat.getApplication() != null && chat.getApplication().getStatus() == ApplicationStatus.DECLINED) {
+        //block new messages if application is declined or closed
+        ApplicationStatus appStatus = chat.getApplication().getStatus();
+        if (appStatus == ApplicationStatus.DECLINED || appStatus == ApplicationStatus.CLOSED_OFFER_FILLED) {
             throw new BadRequestException("Chat is closed");
         }
 

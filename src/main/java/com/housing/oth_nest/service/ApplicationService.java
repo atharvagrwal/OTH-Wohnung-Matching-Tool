@@ -10,6 +10,7 @@ import com.housing.oth_nest.model.Application;
 import com.housing.oth_nest.model.ApplicationStatus; // ⬅️ Add Enum import
 import com.housing.oth_nest.model.NotificationType;   // ⬅️ Add Enum import
 import com.housing.oth_nest.model.Offer;
+import com.housing.oth_nest.model.OfferStatus;
 import com.housing.oth_nest.model.User;
 import com.housing.oth_nest.repository.ApplicationRepository;
 import com.housing.oth_nest.repository.OfferRepository;
@@ -51,7 +52,7 @@ public class ApplicationService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Offer not found: " + request.getOfferId()));
 
-        if (!offer.isActive()) {
+        if (offer.getStatus() != OfferStatus.ACTIVE) {
             throw new BadRequestException("This offer is no longer active");
         }
 
@@ -96,9 +97,7 @@ public class ApplicationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found: " + id));
 
         application.setStatus(updateDto.getStatus());
-        if (updateDto.getDeclineMessage() != null) {
-            application.setDeclineMessage(updateDto.getDeclineMessage());
-        }
+        // Keep declineMessage field in DB (legacy, unused)
 
         application = applicationRepository.save(application);
 
@@ -122,7 +121,7 @@ public class ApplicationService {
                     applicant,
                     NotificationType.DECLINE,
                     "Application Update",
-                    "Your application for " + offer.getApartment().getTitle() + " was not selected at this time.",
+                    "Your application was not selected this time.",
                     application.getId(),
                     offer.getId()
             );
@@ -144,8 +143,8 @@ public class ApplicationService {
         selectedApplication.setStatus(ApplicationStatus.OFFERED);
         applicationRepository.save(selectedApplication);
 
-        //mark the offer as inactive
-        offer.setActive(false);
+        //mark the offer as filled
+        offer.setStatus(OfferStatus.FILLED);
         offerRepository.save(offer);
 
         //notify the chosen applicant
@@ -158,18 +157,21 @@ public class ApplicationService {
                 offer.getId()
         );
 
-        //notify all other applicants that the room was given to someone else
+        //update all other applicants' status to CLOSED_OFFER_FILLED and notify
         List<Application> otherApplications = applicationRepository.findByOffer_Id(offer.getId())
                 .stream()
                 .filter(app -> !app.getId().equals(applicationId))
                 .toList();
 
         for (Application otherApp : otherApplications) {
+            otherApp.setStatus(ApplicationStatus.CLOSED_OFFER_FILLED);
+            applicationRepository.save(otherApp);
+            
             notificationService.createNotification(
                     otherApp.getApplicant(),
-                    NotificationType.DECLINE,
+                    NotificationType.CLOSED_OFFER_FILLED,
                     "Listing Update",
-                    "The accommodation \"" + offer.getApartment().getTitle() + "\" has been offered to someone else at the moment",
+                    "This place has been offered to another applicant.",
                     otherApp.getId(),
                     offer.getId()
             );

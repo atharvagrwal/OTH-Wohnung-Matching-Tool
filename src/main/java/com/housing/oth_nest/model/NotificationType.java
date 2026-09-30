@@ -4,5 +4,8 @@ public enum NotificationType {
     APPLICATION,
     APPROVAL,
     DECLINE,
-    OFFER
+    CLOSED_OFFER_FILLED,
+    OFFER,
+    REMINDER,
+    REMINDER_ACKNOWLEDGED
 }

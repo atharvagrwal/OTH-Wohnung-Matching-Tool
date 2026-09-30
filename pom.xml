@@ -14,6 +14,7 @@
     <groupId>com.housing</groupId>
     <artifactId>oth-nest</artifactId>
     <version>0.0.1-SNAPSHOT</version>
+    <packaging>war</packaging>
 
     <properties>
         <java.version>21</java.version>
@@ -25,6 +26,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Embedded Tomcat is only needed for local `spring-boot:run`; the WAR is deployed into an external Tomcat -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <!-- JPA -->
@@ -43,6 +51,18 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- SHIBBOLETH / SAML2 SSO (opt-in via the 'shibboleth' profile) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-saml2-service-provider</artifactId>
+        </dependency>
+
+        <!-- MAIL -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
         <!-- POSTGRES -->
@@ -80,6 +100,15 @@
 </dependency>
 
     </dependencies>
+
+    <!-- OpenSAML (needed by spring-security-saml2-service-provider) isn't published to Maven Central -->
+    <repositories>
+        <repository>
+            <id>shibboleth</id>
+            <name>Shibboleth Releases</name>
+            <url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
+        </repository>
+    </repositories>
 
     <build>
         <plugins>

@@ -1,6 +1,7 @@
 package com.housing.oth_nest.dto;
 
 import com.housing.oth_nest.model.ApartmentType;
+import com.housing.oth_nest.model.OfferStatus;
 import com.housing.oth_nest.model.StayType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
@@ -16,7 +17,7 @@ import java.util.List;
 public class OfferResponseDto {
 
     private Long id;
-    private boolean active;
+    private OfferStatus status;
     private StayType stayType;
     private LocalDate availableFrom;
     private LocalDate availableUntil;

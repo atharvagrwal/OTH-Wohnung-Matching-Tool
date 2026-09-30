@@ -10,6 +10,8 @@ import { MyOffersPage } from './pages/MyOffersPage';
 import { MyApplicationsPage } from './pages/MyApplicationsPage';
 import { ChatsPage } from './pages/ChatsPage';
 import { ApplicationsManagementPage } from './pages/ApplicationsManagementPage';
+import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
+import { ReviewApplicantsPage } from './pages/ReviewApplicantsPage';
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +30,8 @@ export const router = createBrowserRouter([
       { path: 'offer/:id', Component: OfferDetailPage },
       { path: 'applications/:offerId', Component: ApplicationsManagementPage },
       { path: 'profile', Component: ProfilePage },
+      { path: 'review-applicants', Component: ReviewApplicantsPage },
+      { path: 'privacy-policy', Component: PrivacyPolicyPage },
     ],
   },
   {

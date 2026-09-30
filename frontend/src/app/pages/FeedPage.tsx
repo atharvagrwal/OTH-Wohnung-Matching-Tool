@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useOffers, StayType } from '../context/OffersContext';
-import { MapPin, Euro, Calendar, Filter } from 'lucide-react';
+import { MapPin, Euro, Calendar, Filter, X } from 'lucide-react';
 
 export function FeedPage() {
     const { offers, loading, error } = useOffers();
     const [activeFilters, setActiveFilters] = useState<StayType[]>([]);
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+    const [priceMin, setPriceMin] = useState('');
+    const [priceMax, setPriceMax] = useState('');
+    const [moveInDateFrom, setMoveInDateFrom] = useState('');
+    const [moveInDateTo, setMoveInDateTo] = useState('');
 
     const toggleFilter = (filter: StayType) => {
         setActiveFilters(prev =>
@@ -15,15 +20,41 @@ export function FeedPage() {
         );
     };
 
-    const sortedOffers = [...offers].sort((a, b) => {
+    const resetFilters = () => {
+        setActiveFilters([]);
+        setSortOrder('newest');
+        setPriceMin('');
+        setPriceMax('');
+        setMoveInDateFrom('');
+        setMoveInDateTo('');
+    };
+
+    let sortedOffers = [...offers].sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : Number(a.id) || 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : Number(b.id) || 0;
-        return dateB - dateA;
+        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
     });
 
-    const filteredOffers = activeFilters.length === 0
-        ? sortedOffers
-        : sortedOffers.filter(offer => activeFilters.includes(offer.stayType));
+    const filteredOffers = sortedOffers
+        .filter(offer => activeFilters.length === 0 || activeFilters.includes(offer.stayType))
+        .filter(offer => {
+            if (priceMin && offer.totalPrice < Number(priceMin)) return false;
+            if (priceMax && offer.totalPrice > Number(priceMax)) return false;
+            return true;
+        })
+        .filter(offer => {
+            if (moveInDateFrom) {
+                const offerDate = new Date(offer.moveInDate);
+                const filterDate = new Date(moveInDateFrom);
+                if (offerDate < filterDate) return false;
+            }
+            if (moveInDateTo) {
+                const offerDate = new Date(offer.moveInDate);
+                const filterDate = new Date(moveInDateTo);
+                if (offerDate > filterDate) return false;
+            }
+            return true;
+        });
 
     const getStayTypeLabel = (type: StayType) => {
         const labels = {
@@ -50,6 +81,8 @@ export function FeedPage() {
             year: 'numeric',
         });
     };
+
+    const hasActiveFilters = activeFilters.length > 0 || priceMin || priceMax || moveInDateFrom || moveInDateTo || sortOrder !== 'newest';
 
     if (loading) {
         return (
@@ -79,25 +112,94 @@ export function FeedPage() {
                 <p className="text-gray-600">Find your perfect accommodation in the OTH Regensburg community</p>
             </div>
 
-            <div className="mb-6 bg-white rounded-lg shadow-sm p-4">
-                <div className="flex items-center gap-2 mb-3">
-                    <Filter size={20} className="text-gray-600" />
-                    <span className="font-medium text-gray-900">Filters</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {(['zwischenmiete', 'nachmieter', 'couchsurfing'] as StayType[]).map((type) => (
+            <div className="mb-6 bg-white rounded-lg shadow-sm p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Filter size={20} className="text-gray-600" />
+                        <span className="font-medium text-gray-900">Filters</span>
+                    </div>
+                    {hasActiveFilters && (
                         <button
-                            key={type}
-                            onClick={() => toggleFilter(type)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                activeFilters.includes(type)
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                            onClick={resetFilters}
+                            className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                         >
-                            {getStayTypeLabel(type)}
+                            <X size={16} />
+                            Clear all
                         </button>
-                    ))}
+                    )}
+                </div>
+
+                {/* Sort Order */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">Sort By</label>
+                    <select
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                        <option value="newest">Newest first</option>
+                        <option value="oldest">Oldest first</option>
+                    </select>
+                </div>
+
+                {/* Price Range */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">Price Range</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        <input
+                            type="number"
+                            placeholder="Min €"
+                            value={priceMin}
+                            onChange={(e) => setPriceMin(e.target.value)}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <input
+                            type="number"
+                            placeholder="Max €"
+                            value={priceMax}
+                            onChange={(e) => setPriceMax(e.target.value)}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                    </div>
+                </div>
+
+                {/* Move-in Date Range */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">Move-in Date</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        <input
+                            type="date"
+                            value={moveInDateFrom}
+                            onChange={(e) => setMoveInDateFrom(e.target.value)}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <input
+                            type="date"
+                            value={moveInDateTo}
+                            onChange={(e) => setMoveInDateTo(e.target.value)}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                    </div>
+                </div>
+
+                {/* Stay Type Filters */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">Stay Type</label>
+                    <div className="flex flex-wrap gap-2">
+                        {(['zwischenmiete', 'nachmieter', 'couchsurfing'] as StayType[]).map((type) => (
+                            <button
+                                key={type}
+                                onClick={() => toggleFilter(type)}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    activeFilters.includes(type)
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                                {getStayTypeLabel(type)}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 

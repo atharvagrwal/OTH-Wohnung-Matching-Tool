@@ -5,7 +5,6 @@ import { useApplications } from '../context/ApplicationsContext';
 import { useChats } from '../context/ChatsContext';
 import { apiService } from '../../services/api';
 import { Application } from '../context/ApplicationsContext';
-import { DeclineModal } from '../components/DeclineApplicationModal.tsx';
 import { ArrowLeft, Check, X, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,9 +18,6 @@ export function ApplicationsManagementPage() {
   const offer = getOfferById(offerId || '');
   const [offerApplications, setOfferApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
-
-  //modal state for declining
-  const [declineTarget, setDeclineTarget] = useState<{ id: string; name: string } | null>(null);
 
   const fetchOfferApplications = useCallback(async () => {
     if (!offerId) return;
@@ -67,14 +63,10 @@ export function ApplicationsManagementPage() {
     }
   };
 
-  const handleConfirmDecline = async (declineMessage?: string) => {
-    if (!declineTarget) return;
-
+  const handleDecline = async (applicationId: string, applicantName: string) => {
     try {
-      //passes the optional decline message to the backend
-      await updateApplicationStatus(declineTarget.id, 'declined', declineMessage);
-      toast.info(`Application for ${declineTarget.name} declined.`);
-      setDeclineTarget(null);
+      await updateApplicationStatus(applicationId, 'declined');
+      toast.info(`Application for ${applicantName} declined.`);
       await fetchOfferApplications();
     } catch (error) {
       console.error('Failed to decline application:', error);
@@ -84,7 +76,7 @@ export function ApplicationsManagementPage() {
 
   const pendingApplications = offerApplications.filter(app => app.status === 'pending');
   const approvedApplications = offerApplications.filter(app => app.status === 'approved' || app.status === 'offered');
-  const declinedApplications = offerApplications.filter(app => app.status === 'declined');
+  const declinedApplications = offerApplications.filter(app => app.status === 'declined' || app.status === 'closed_offer_filled');
 
   const getStatusBadge = (status: string) => {
     const colors = {
@@ -92,6 +84,7 @@ export function ApplicationsManagementPage() {
       approved: 'bg-green-50 text-green-700 border-green-200',
       declined: 'bg-red-50 text-red-700 border-red-200',
       offered: 'bg-blue-100 text-blue-800 border-blue-300',
+      closed_offer_filled: 'bg-gray-100 text-gray-700 border-gray-300',
     };
     return colors[status as keyof typeof colors] || 'bg-gray-50 text-gray-700 border-gray-200';
   };
@@ -159,7 +152,7 @@ export function ApplicationsManagementPage() {
                                 Approve & Start Chat
                               </button>
                               <button
-                                  onClick={() => setDeclineTarget({id: app.id, name: app.applicantName})}
+                                  onClick={() => handleDecline(app.id, app.applicantName)}
                                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
                               >
                                 <X size={20}/>
@@ -218,15 +211,9 @@ export function ApplicationsManagementPage() {
                                 <p className="text-sm text-gray-600">{app.applicantEmail}</p>
                               </div>
                               <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadge(app.status)}`}>
-                        Declined
+                        {app.status === 'closed_offer_filled' ? 'Offer Given to Another Applicant' : 'Declined'}
                       </span>
                             </div>
-
-                            {app.declineMessage && (
-                                <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-700">
-                                  <strong>Reason provided:</strong> {app.declineMessage}
-                                </div>
-                            )}
                           </div>
                       ))}
                     </div>
@@ -234,13 +221,6 @@ export function ApplicationsManagementPage() {
               )}
             </>
         )}
-
-        <DeclineModal
-            isOpen={Boolean(declineTarget)}
-            onClose={() => setDeclineTarget(null)}
-            onSubmit={handleConfirmDecline}
-            applicantName={declineTarget?.name || ''}
-        />
       </div>
   );
 }

@@ -34,6 +34,9 @@ public class Chat {
     @JoinColumn(name = "applicant_id", nullable = false)
     private User applicant;
 
+    @Column(columnDefinition = "TEXT")
+    private String originalApplicationMessage;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

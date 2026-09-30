@@ -30,7 +30,10 @@ public class Offer {
 
     private LocalDate availableUntil;
 
-    private boolean active = true;
+    @Enumerated(EnumType.STRING)
+    private OfferStatus status = OfferStatus.ACTIVE;
+
+    private LocalDateTime reminderSentAt;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 }

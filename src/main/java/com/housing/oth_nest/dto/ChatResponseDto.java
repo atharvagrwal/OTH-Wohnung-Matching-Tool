@@ -18,6 +18,7 @@ public class ChatResponseDto {
     private String ownerName;
     private String applicantId;
     private String applicantName;
+    private String originalApplicationMessage;
     private List<ChatMessageResponseDto> messages;
     private long unreadCount;
     private String createdAt;

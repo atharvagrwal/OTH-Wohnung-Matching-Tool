@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { apiService } from '../../services/api';
 import { useAuth } from './AuthContext';
 
-export type NotificationType = 'application' | 'approval' | 'decline' | 'offer' | 'final-decline';
+export type NotificationType = 'application' | 'approval' | 'decline' | 'offer' | 'final-decline' | 'closed_offer_filled' | 'reminder' | 'reminder_acknowledged';
 
 export interface Notification {
   id: string;

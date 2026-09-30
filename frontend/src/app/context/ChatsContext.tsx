@@ -21,6 +21,7 @@ export interface Chat {
     ownerName: string;
     applicantId: string;
     applicantName: string;
+    originalApplicationMessage?: string;
     participants: string[];
     messages: Message[];
     unreadCount: number;
@@ -61,6 +62,7 @@ export function ChatsProvider({children}: { children: ReactNode }) {
                 ownerName: c.ownerName,
                 applicantId: c.applicantId,
                 applicantName: c.applicantName,
+                originalApplicationMessage: c.originalApplicationMessage,
                 participants: [c.ownerId, c.applicantId],
                 unreadCount: c.unreadCount || 0,
                 messages: (c.messages || []).map(m => ({

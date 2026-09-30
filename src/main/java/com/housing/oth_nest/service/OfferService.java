@@ -7,6 +7,7 @@ import com.housing.oth_nest.exception.ResourceNotFoundException;
 import com.housing.oth_nest.model.Apartment;
 import com.housing.oth_nest.model.ApartmentType;
 import com.housing.oth_nest.model.Offer;
+import com.housing.oth_nest.model.OfferStatus;
 import com.housing.oth_nest.model.User;
 import com.housing.oth_nest.repository.ApartmentRepository;
 import com.housing.oth_nest.repository.OfferRepository;
@@ -24,6 +25,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -53,8 +56,6 @@ public class OfferService {
             ApartmentType apartmentType,
             Boolean activeOnly) {
 
-        boolean active = activeOnly == null || activeOnly;
-
         Specification<Offer> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -65,8 +66,8 @@ public class OfferService {
 
             var apartment = root.join("apartment");
 
-            if (active) {
-                predicates.add(cb.isTrue(root.get("active")));
+            if (activeOnly == null || activeOnly) {
+                predicates.add(cb.equal(root.get("status"), OfferStatus.ACTIVE));
             }
             if (location != null && !location.isBlank()) {
                 predicates.add(cb.like(
@@ -99,9 +100,13 @@ public class OfferService {
         if (!userRepository.existsById(ownerId)) {
             throw new ResourceNotFoundException("User not found: " + ownerId);
         }
-        return offerRepository.findByOwner_IdAndActiveTrue(ownerId).stream()
+        return offerRepository.findByOwner_IdAndStatusOrderByCreatedAtDesc(ownerId, OfferStatus.ACTIVE).stream()
                 .map(DtoMapper::toOfferResponse)
                 .toList();
+    }
+
+    public List<Offer> getAllOffersByOwner(Long ownerId) {
+        return offerRepository.findByOwner_Id(ownerId);
     }
 
     @Transactional
@@ -149,7 +154,7 @@ public class OfferService {
         offer.setAvailableFrom(request.getAvailableFrom());
         offer.setAvailableUntil(request.getAvailableUntil());
         offer.setStayType(request.getStayType());
-        offer.setActive(true);
+        offer.setStatus(OfferStatus.ACTIVE);
 
         offer = offerRepository.save(offer);
         return DtoMapper.toOfferResponse(offer);
@@ -159,7 +164,36 @@ public class OfferService {
     public OfferResponseDto deactivateOffer(Long id) {
         Offer offer = offerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Offer not found: " + id));
-        offer.setActive(false);
+        offer.setStatus(OfferStatus.MANUALLY_DISABLED);
+        return DtoMapper.toOfferResponse(offerRepository.save(offer));
+    }
+
+    @Transactional
+    public void updateOfferStatus(Long id, OfferStatus status) {
+        Offer offer = offerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Offer not found: " + id));
+        offer.setStatus(status);
+        offerRepository.save(offer);
+    }
+
+    @Transactional
+    public void markReminderSent(Long id) {
+        Offer offer = offerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Offer not found: " + id));
+        offer.setReminderSentAt(LocalDateTime.now());
+        offerRepository.save(offer);
+    }
+
+    public List<Offer> getReminderCandidates() {
+        return offerRepository.findReminderCandidates(LocalDate.now());
+    }
+
+    @Transactional
+    public OfferResponseDto updateMoveInDate(Long id, LocalDate newMoveInDate) {
+        Offer offer = offerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Offer not found: " + id));
+        offer.setAvailableFrom(newMoveInDate);
+        offer.setReminderSentAt(null);
         return DtoMapper.toOfferResponse(offerRepository.save(offer));
     }
 }
