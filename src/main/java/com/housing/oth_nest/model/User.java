@@ -66,6 +66,7 @@ public class User {
     @Column(unique = true)
     private String externalId;
 
+    @Builder.Default
     private boolean verified = false;
 
     private LocalDateTime createdAt;
@@ -93,6 +94,8 @@ public class User {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
-        this.verified = false;
+        if (this.authProvider == null) {
+            this.authProvider = AuthProvider.LOCAL;
+        }
     }
 }

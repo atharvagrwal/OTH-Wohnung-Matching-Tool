@@ -11,7 +11,6 @@ import com.housing.oth_nest.model.StudentProfile;
 import com.housing.oth_nest.model.User;
 import com.housing.oth_nest.model.UserRole;
 import com.housing.oth_nest.repository.UserRepository;
-import com.housing.oth_nest.security.SsoExchangeCodeStore;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,12 +20,10 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final SsoExchangeCodeStore ssoExchangeCodeStore;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, SsoExchangeCodeStore ssoExchangeCodeStore) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.ssoExchangeCodeStore = ssoExchangeCodeStore;
     }
 
     @Transactional
@@ -40,6 +37,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
+                .authProvider(AuthProvider.LOCAL)
                 .phoneNumber(request.getPhoneNumber())
                 .bio(request.getBio())
                 .build();
@@ -65,14 +63,10 @@ public class AuthService {
         return DtoMapper.toAuthResponse(user, "Login successful");
     }
 
-    public AuthResponse exchangeSsoCode(String code) {
-        Long userId = ssoExchangeCodeStore.redeem(code)
-                .orElseThrow(() -> new BadRequestException("Invalid or expired SSO code"));
-
+    public AuthResponse currentUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("User not found"));
-
-        return DtoMapper.toAuthResponse(user, "Login successful");
+        return DtoMapper.toAuthResponse(user, "User loaded");
     }
 
     private void attachRoleProfile(User user, RegisterRequest request) {

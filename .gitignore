@@ -31,3 +31,14 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Frontend generated / install artifacts ###
+frontend/node_modules/
+frontend/dist/
+**/.DS_Store
+.DS_Store
+
+### Shibboleth SP credentials ###
+saml-credentials/*.key
+saml-credentials/*.crt
+saml-credentials/*.pem
