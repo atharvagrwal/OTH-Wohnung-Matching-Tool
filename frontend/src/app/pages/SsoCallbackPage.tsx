@@ -12,17 +12,9 @@ export function SsoCallbackPage() {
     if (processedRef.current) return;
     processedRef.current = true;
 
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('ssoCode');
-
-    if (!code) {
-      setError('Missing SSO login code. Please try again.');
-      return;
-    }
-
-    completeSsoLogin(code)
+    completeSsoLogin('')
       .then(() => navigate('/', { replace: true }))
-      .catch(() => setError('SSO login failed or the code expired. Please try again.'));
+      .catch(() => setError('SSO login failed. Please try again.'));
   }, [completeSsoLogin, navigate]);
 
   if (error) {

@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://localhost:8080'; // Change to your Spring Boot port
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8085';
 
 export interface AuthResponse {
     userId: number;
@@ -6,6 +6,10 @@ export interface AuthResponse {
     email: string;
     role: 'STUDENT' | 'EMPLOYEE' | 'ADMIN';
     message: string;
+}
+
+export interface AuthConfigResponse {
+    ssoEnabled: boolean;
 }
 
 export interface OfferResponse {
@@ -134,14 +138,30 @@ export const apiService = {
         return response.json();
     },
 
-    async exchangeSsoCode(code: string): Promise<AuthResponse> {
-        const response = await fetch(`${API_BASE_URL}/auth/sso/exchange`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code }),
+    async getCurrentUser(): Promise<AuthResponse> {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+            credentials: 'include',
         });
-        if (!response.ok) throw new Error('SSO login failed or expired. Please try again.');
+        if (!response.ok) throw new Error('User session not available.');
         return response.json();
+    },
+
+    async getAuthConfig(): Promise<AuthConfigResponse> {
+        const response = await fetch(`${API_BASE_URL}/auth/config`, {
+            credentials: 'include',
+        });
+        if (!response.ok) throw new Error('Failed to load SSO config.');
+        return response.json();
+    },
+
+    async logout(): Promise<void> {
+        const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+            method: 'POST',
+            credentials: 'include',
+        });
+        if (!response.ok && response.status !== 204) {
+            throw new Error('Logout failed.');
+        }
     },
 
     async getUserNotifications(userId: string) {

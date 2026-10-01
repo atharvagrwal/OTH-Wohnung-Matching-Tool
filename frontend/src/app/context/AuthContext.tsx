@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { apiService } from '../../services/api';
 
 export interface User {
@@ -12,9 +12,12 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  loading: boolean;
+  ssoEnabled: boolean;
   login: (email: string, password: string) => Promise<void>;
   completeSsoLogin: (code: string) => Promise<void>;
-  logout: () => void;
+  refreshUser: () => Promise<void>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -22,58 +25,83 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [ssoEnabled, setSsoEnabled] = useState(false);
 
-  const login = async (email: string, password: string) => {
-    // Mock login - simulates SSO from university portal
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const trimmedEmail = email.trim().toLowerCase();
-
-    if (trimmedEmail === 'max.mustermann@stud.oth-regensburg.de' && password === 'password123') {
+  const refreshUser = async () => {
+    try {
+      const response = await apiService.getCurrentUser();
       setUser({
-        id: '1',
-        email: trimmedEmail,
-        name: 'Max Mustermann',
-        gender: 'male',
-        dateOfBirth: '2000-03-15',
-        role: 'student',
+        id: String(response.userId),
+        email: response.email,
+        name: response.name,
+        gender: 'diverse',
+        dateOfBirth: '',
+        role: response.role === 'STUDENT' ? 'student' : 'worker',
       });
-    } else if (trimmedEmail === 'anna.schmidt@stud.oth-regensburg.de' && password === 'secure456') {
-      setUser({
-        id: '2',
-        email: trimmedEmail,
-        name: 'Anna Schmidt',
-        gender: 'female',
-        dateOfBirth: '2001-07-22',
-        role: 'student',
-      });
-    } else {
-      throw new Error('Invalid OTH Portal credentials. Please check your email or password.');
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const completeSsoLogin = async (code: string) => {
-    const response = await apiService.exchangeSsoCode(code);
+  useEffect(() => {
+    const bootstrap = async () => {
+      try {
+        const config = await apiService.getAuthConfig();
+        setSsoEnabled(config.ssoEnabled);
+      } catch {
+        setSsoEnabled(false);
+      }
+      await refreshUser();
+    };
+
+    void bootstrap();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8085'}/auth/login`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) {
+      throw new Error('Invalid OTH Portal credentials. Please check your email or password.');
+    }
+    const payload = await response.json();
     setUser({
-      id: String(response.userId),
-      email: response.email,
-      name: response.name,
+      id: String(payload.userId),
+      email: payload.email,
+      name: payload.name,
       gender: 'diverse',
       dateOfBirth: '',
-      role: response.role === 'STUDENT' ? 'student' : 'worker',
+      role: payload.role === 'STUDENT' ? 'student' : 'worker',
     });
   };
 
-  const logout = () => {
-    setUser(null);
+  const completeSsoLogin = async (_code: string) => {
+    await refreshUser();
+  };
+
+  const logout = async () => {
+    try {
+      await apiService.logout();
+    } finally {
+      setUser(null);
+    }
   };
 
   return (
       <AuthContext.Provider
           value={{
             user,
+            loading,
+            ssoEnabled,
             login,
             completeSsoLogin,
+            refreshUser,
             logout,
             isAuthenticated: !!user,
           }}

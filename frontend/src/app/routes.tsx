@@ -12,6 +12,7 @@ import { ChatsPage } from './pages/ChatsPage';
 import { ApplicationsManagementPage } from './pages/ApplicationsManagementPage';
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
 import { ReviewApplicantsPage } from './pages/ReviewApplicantsPage';
+import { SsoCallbackPage } from './pages/SsoCallbackPage';
 
 export const router = createBrowserRouter([
   {
@@ -40,7 +41,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/sso-callback',
-    Component: React.lazy(() => import('./pages/SsoCallbackPage').then(module => ({ default: module.SsoCallbackPage }))),
+    Component: SsoCallbackPage,
   },
   {
     path: '*',
